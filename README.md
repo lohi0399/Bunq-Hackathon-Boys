@@ -1,117 +1,134 @@
-# bunq Hackathon Toolkit
+# ReceiptAI — bunq Hackathon 7.0
 
-Get started with the bunq banking API in under 5 minutes.
+A multimodal AI web app that scans receipts and logs expenses directly to your bunq account.
 
-Working Python examples that cover authentication, payments, accounts, and more — all using the sandbox (no real money). Built for hackathon participants who want to learn fast and build something cool.
+**Upload a receipt photo → Claude AI extracts merchant, amount, category, and line items → one click logs it as a payment in bunq.**
+
+Built for [bunq Hackathon 7.0 — Multimodal AI](https://bunq-hackathon-7-0.devpost.com/).
+
+---
+
+## What it does
+
+1. You drag and drop (or upload) a photo of any receipt
+2. Claude's vision AI reads it and extracts: merchant name, total amount, currency, category, date, and individual items
+3. You review the result and optionally edit the payment note
+4. Click **Log to bunq** — it creates a real payment request in your bunq account
+
+---
 
 ## Prerequisites
 
-- **Python 3.10+** installed
-- That's it. The first script creates a sandbox API key for you automatically.
+- Python 3.10 or newer
+- A free [Anthropic account](https://platform.anthropic.com) with API credits
+- That's it — the app auto-creates a bunq sandbox account for you
 
-## Quick Start
+---
+
+## Step-by-step setup
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/lohi0399/Bunq-Hackathon-Boys.git
+cd Bunq-Hackathon-Boys
+git checkout receipt-ai
+```
+
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
-python 01_authentication.py
 ```
 
-This will:
-1. Create a sandbox user and API key
-2. Walk you through the full authentication flow
-3. Print your session token and user ID
+### 3. Get your API keys
 
-Then try the other tutorials in order:
+**Anthropic (Claude AI) — required**
+
+1. Sign up at [platform.anthropic.com](https://platform.anthropic.com)
+2. Go to **API Keys** → create a new key (starts with `sk-ant-...`)
+3. Add credits under **Plans & Billing** (even $5 is enough for demos)
+
+**bunq sandbox — optional (auto-created if you skip this)**
+
+Run this to generate a free sandbox key instantly:
+```bash
+python -c "from bunq_client import BunqClient; print(BunqClient.create_sandbox_user())"
+```
+This prints a key like `sandbox_abc123...` — copy it.
+
+### 4. Create your `.env` file
+
+Create a file called `.env` in the project root:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+BUNQ_API_KEY=sandbox_...
+```
+
+> If you skip `BUNQ_API_KEY`, the app will auto-create a sandbox user each time — fine for demos.
+
+### 5. Run the app
 
 ```bash
-python 02_create_monetary_account.py
-python 03_make_payment.py
-python 04_request_money.py
-python 05_create_bunqme_link.py
-python 06_list_transactions.py
-python 07_setup_callbacks.py
+python app.py
 ```
 
-## Using Your Own API Key
-
-If you already have a bunq sandbox API key, set it as an environment variable:
-
-```bash
-export BUNQ_API_KEY="your_sandbox_api_key_here"
+You should see:
+```
+  ReceiptAI running → http://localhost:5000
 ```
 
-Or create a `.env` file in the project root (see `.env.example`).
+### 6. Open it in your browser
 
-## Getting Test Money
+Go to **[http://localhost:5000](http://localhost:5000)**
 
-In the sandbox, request up to EUR 500 from `sugardaddy@bunq.com`. Script `03_make_payment.py` does this automatically before sending a payment.
+- Drag and drop a receipt image (JPG, PNG, or WebP)
+- Click **Analyse with Claude AI**
+- Review the extracted details
+- Click **Log to bunq** to record the expense
 
-## Tutorials
+---
 
-| # | Script | What You'll Learn |
-|---|--------|-------------------|
-| 01 | `01_authentication.py` | The full auth flow: RSA keypair → installation → device → session |
-| 02 | `02_create_monetary_account.py` | Create and list bank accounts |
-| 03 | `03_make_payment.py` | Request test money and send a payment |
-| 04 | `04_request_money.py` | Create payment requests (RequestInquiry) |
-| 05 | `05_create_bunqme_link.py` | Generate shareable payment links |
-| 06 | `06_list_transactions.py` | Retrieve payment history with pagination |
-| 07 | `07_setup_callbacks.py` | Set up real-time payment notifications (webhooks) |
-
-## How It Works
-
-The `bunq_client.py` library handles the three-step authentication flow:
+## Project structure
 
 ```
-Your API Key
-     │
-     ▼
-POST /installation ──→ Register your RSA public key
-     │                  Get installation token + server public key
-     ▼
-POST /device-server ──→ Register your device
-     │                   Uses installation token
-     ▼
-POST /session-server ──→ Create a session
-     │                    Get session token + user ID
-     ▼
-  Ready to make API calls!
+├── app.py                  ← Flask backend (Claude vision + bunq API)
+├── templates/
+│   └── index.html          ← Web UI (drag-drop, results, bunq logging)
+├── bunq_client.py          ← Shared bunq API client (auth + signing)
+├── requirements.txt        ← Python dependencies
+├── .env                    ← Your API keys (never committed)
+└── 01_authentication.py    ← bunq auth tutorial (standalone)
 ```
 
-After the first authentication, your session is cached in `bunq_context.json` so you don't need to re-authenticate every time.
+## Tech stack
 
-## API Rate Limits
+| Layer | Technology |
+|---|---|
+| AI vision | Anthropic Claude (claude-opus-4-5) |
+| Banking API | bunq sandbox API |
+| Backend | Python / Flask |
+| Frontend | Vanilla HTML/CSS/JS |
+
+---
+
+## Troubleshooting
+
+**"Anthropic account has no credits"**
+→ Add credits at [platform.anthropic.com/settings/billing](https://platform.anthropic.com/settings/billing)
+
+**"No BUNQ_API_KEY found"**
+→ This is fine — the app creates a temporary sandbox user automatically. Add one to `.env` to persist across restarts.
+
+**Port 5000 already in use**
+→ Set a different port: `PORT=8080 python app.py`
+
+---
+
+## API rate limits (bunq sandbox)
 
 | Method | Limit |
-|--------|-------|
-| GET | 3 requests per 3 seconds |
-| POST | 5 requests per 3 seconds |
-| PUT | 2 requests per 3 seconds |
-| /session-server | 1 request per 30 seconds |
-
-## Project Structure
-
-```
-hackathon-toolkit/
-├── README.md                        ← you are here
-├── .env.example
-├── requirements.txt
-├── bunq_client.py                   ← shared client library (auth + HTTP + signing)
-├── 01_authentication.py
-├── 02_create_monetary_account.py
-├── 03_make_payment.py
-├── 04_request_money.py
-├── 05_create_bunqme_link.py
-├── 06_list_transactions.py
-├── 07_setup_callbacks.py
-└── docs/
-    ├── API_REFERENCE.md
-    └── TROUBLESHOOTING.md
-```
-
-## Resources
-
-- [bunq API Documentation](https://doc.bunq.com)
-- [bunq Developer Portal](https://developer.bunq.com)
-- [docs/API_REFERENCE.md](docs/API_REFERENCE.md) — Endpoint cheat sheet
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common errors and fixes
+|---|---|
+| GET | 3 requests / 3 seconds |
+| POST | 5 requests / 3 seconds |
