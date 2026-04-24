@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{% if mode == 'register' %}Create Account{% else %}Sign In{% endif %} — ReceiptAI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --neon:#00ffb3;--neon2:#00d492;--blue:#4f8cff;--purple:#a855f7;
+      --bg:#07090f;--surface:#0d1117;--surface2:#111827;
+      --border:#1e2d3d;--border-hi:#243548;
+      --text:#e2eaf6;--text2:#8b9cb8;--text3:#4a5e7a;
+      --danger:#f43f5e;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;padding:24px;overflow:hidden}
+
+    /* Grid background */
+    body::before{content:'';position:fixed;inset:0;
+      background-image:linear-gradient(rgba(0,255,179,.018) 1px,transparent 1px),
+                       linear-gradient(90deg,rgba(0,255,179,.018) 1px,transparent 1px);
+      background-size:40px 40px;pointer-events:none}
+    /* Ambient glow */
+    body::after{content:'';position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+      width:600px;height:400px;
+      background:radial-gradient(ellipse,rgba(0,255,179,.07) 0%,transparent 65%);
+      pointer-events:none}
+
+    /* Animated particles */
+    .particle{position:fixed;border-radius:50%;pointer-events:none;animation:float linear infinite}
+    @keyframes float{from{transform:translateY(100vh) scale(0)}to{transform:translateY(-100px) scale(1)}}
+
+    /* Card */
+    .card{position:relative;z-index:10;background:var(--surface);
+      border:1px solid var(--border);border-radius:20px;padding:36px 40px;
+      width:100%;max-width:440px;
+      box-shadow:0 0 0 1px rgba(0,255,179,.04),0 32px 64px rgba(0,0,0,.5)}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;border-radius:20px 20px 0 0;
+      background:linear-gradient(90deg,transparent,rgba(0,255,179,.35),transparent)}
+
+    /* Logo */
+    .logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:28px}
+    .logo-mark{width:38px;height:38px;border-radius:10px;flex-shrink:0;
+      background:linear-gradient(135deg,var(--neon),var(--blue));
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;font-size:16px;color:#000;
+      box-shadow:0 0 24px rgba(0,255,179,.3)}
+    .logo-text{font-size:18px;font-weight:900;
+      background:linear-gradient(90deg,#fff 30%,var(--neon));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+    /* Tabs */
+    .tabs{display:flex;gap:4px;background:var(--surface2);border-radius:10px;
+      padding:4px;margin-bottom:28px}
+    .tab{flex:1;padding:8px;border-radius:7px;font-size:13px;font-weight:700;
+      cursor:pointer;transition:all .15s;border:none;background:none;
+      color:var(--text2);font-family:var(--font)}
+    .tab.active{background:rgba(0,255,179,.1);color:var(--neon);
+      border:1px solid rgba(0,255,179,.18)}
+
+    /* Form */
+    .section-title{font-size:20px;font-weight:800;text-align:center;
+      letter-spacing:-.4px;margin-bottom:6px}
+    .section-sub{font-size:13px;color:var(--text2);text-align:center;
+      margin-bottom:24px;line-height:1.5}
+    .fgroup{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+    label{font-family:var(--mono);font-size:9px;font-weight:700;
+      letter-spacing:1.3px;text-transform:uppercase;color:var(--text3)}
+    input{width:100%;padding:11px 14px;background:var(--surface2);
+      border:1px solid var(--border-hi);border-radius:9px;font-size:14px;
+      color:var(--text);font-family:var(--font);outline:none;
+      transition:border-color .15s,box-shadow .15s}
+    input:focus{border-color:var(--neon);box-shadow:0 0 0 3px rgba(0,255,179,.06)}
+    input::placeholder{color:var(--text3)}
+
+    /* Error */
+    .error-box{background:rgba(244,63,94,.07);border:1px solid rgba(244,63,94,.22);
+      border-radius:9px;padding:10px 14px;font-size:13px;color:var(--danger);
+      margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+    /* Button */
+    .btn{width:100%;padding:12px;border-radius:9px;font-size:14px;font-weight:800;
+      cursor:pointer;transition:all .15s;border:none;font-family:var(--font);
+      background:linear-gradient(135deg,var(--neon2),#0098e6);color:#000;
+      box-shadow:0 3px 16px rgba(0,212,146,.18);margin-top:4px}
+    .btn:hover{opacity:.85;transform:translateY(-1px);
+      box-shadow:0 6px 24px rgba(0,212,146,.28)}
+    .btn:active{transform:translateY(0)}
+
+    /* Divider */
+    .divider{display:flex;align-items:center;gap:12px;margin:18px 0}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+    .divider span{font-size:11px;color:var(--text3);font-family:var(--mono)}
+
+    /* Password strength */
+    .strength-bar{height:3px;border-radius:3px;background:var(--border);margin-top:6px;overflow:hidden}
+    .strength-fill{height:100%;width:0;border-radius:3px;transition:all .3s}
+    .strength-label{font-family:var(--mono);font-size:9px;font-weight:600;
+      letter-spacing:.5px;margin-top:3px;color:var(--text3)}
+
+    /* Footer note */
+    .foot-note{position:relative;z-index:10;margin-top:16px;
+      font-size:12px;color:var(--text3);text-align:center}
+    .foot-note a{color:var(--text2);text-decoration:none}
+    .foot-note a:hover{color:var(--neon)}
+
+    /* Input icon wrapper */
+    .input-wrap{position:relative}
+    .input-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+      cursor:pointer;font-size:14px;user-select:none;color:var(--text3)}
+  </style>
+</head>
+<body>
+
+<!-- Floating particles -->
+<script>
+  for(let i=0;i<12;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const s=Math.random()*4+2;
+    p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;
+      background:rgba(0,255,179,${Math.random()*.15+.04});
+      animation-duration:${Math.random()*12+8}s;
+      animation-delay:-${Math.random()*12}s`;
+    document.body.appendChild(p);
+  }
+</script>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-mark">b</div>
+    <span class="logo-text">ReceiptAI</span>
+  </div>
+
+  <!-- Tab switcher -->
+  <div class="tabs">
+    <button class="tab {% if mode == 'login' %}active{% endif %}"
+            onclick="location.href='/login'">Sign In</button>
+    <button class="tab {% if mode == 'register' %}active{% endif %}"
+            onclick="location.href='/register'">Create Account</button>
+  </div>
+
+  {% if mode == 'register' %}
+    <div class="section-title">Create your account</div>
+    <div class="section-sub">Join ReceiptAI and connect to your bunq sandbox</div>
+  {% else %}
+    <div class="section-title">Welcome back</div>
+    <div class="section-sub">Sign in to access your banking dashboard</div>
+  {% endif %}
+
+  {% if error %}
+  <div class="error-box">⚠ {{ error }}</div>
+  {% endif %}
+
+  {% if mode == 'register' %}
+  <!-- ─── Register form ─── -->
+  <form method="POST" action="/register" autocomplete="on">
+    <div class="fgroup">
+      <label>Username</label>
+      <input name="username" type="text" placeholder="hackathon_user" required
+             autocomplete="username" minlength="3" maxlength="40"/>
+    </div>
+    <div class="fgroup">
+      <label>Email</label>
+      <input name="email" type="email" placeholder="you@example.com" required
+             autocomplete="email"/>
+    </div>
+    <div class="fgroup">
+      <label>Password</label>
+      <div class="input-wrap">
+        <input name="password" id="pw" type="password" placeholder="Min 6 characters" required
+               autocomplete="new-password" oninput="checkStrength(this.value)"/>
+        <span class="input-icon" onclick="togglePw('pw')">👁</span>
+      </div>
+      <div class="strength-bar"><div class="strength-fill" id="str-fill"></div></div>
+      <div class="strength-label" id="str-lbl"></div>
+    </div>
+    <div class="fgroup">
+      <label>Confirm Password</label>
+      <div class="input-wrap">
+        <input name="confirm" id="pw2" type="password" placeholder="Repeat password" required
+               autocomplete="new-password"/>
+        <span class="input-icon" onclick="togglePw('pw2')">👁</span>
+      </div>
+    </div>
+    <button class="btn" type="submit">✦ Create Account</button>
+  </form>
+
+  {% else %}
+  <!-- ─── Login form ─── -->
+  <form method="POST" action="/login" autocomplete="on">
+    <div class="fgroup">
+      <label>Username</label>
+      <input name="username" type="text" placeholder="your_username" required
+             autocomplete="username" autofocus/>
+    </div>
+    <div class="fgroup">
+      <label>Password</label>
+      <div class="input-wrap">
+        <input name="password" id="pw" type="password" placeholder="••••••••" required
+               autocomplete="current-password"/>
+        <span class="input-icon" onclick="togglePw('pw')">👁</span>
+      </div>
+    </div>
+    <button class="btn" type="submit">→ Sign In</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="foot-note">
+  bunq Hackathon 7.0 &nbsp;·&nbsp;
+  <a href="https://github.com/lohi0399/Bunq-Hackathon-Boys" target="_blank" rel="noopener">GitHub</a>
+</div>
+
+<script>
+  function togglePw(id) {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+  }
+  function checkStrength(pw) {
+    const fill = document.getElementById('str-fill');
+    const lbl  = document.getElementById('str-lbl');
+    if (!fill) return;
+    let score = 0;
+    if (pw.length >= 6)  score++;
+    if (pw.length >= 10) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const levels = [
+      {pct:'20%', color:'#f43f5e', label:'Very weak'},
+      {pct:'40%', color:'#fb923c', label:'Weak'},
+      {pct:'60%', color:'#fbbf24', label:'Fair'},
+      {pct:'80%', color:'#4f8cff', label:'Good'},
+      {pct:'100%',color:'#00ffb3', label:'Strong'},
+    ];
+    const l = levels[Math.max(0, score-1)] || levels[0];
+    fill.style.width  = l.pct;
+    fill.style.background = l.color;
+    lbl.textContent = pw.length ? l.label : '';
+    lbl.style.color = l.color;
+  }
+</script>
+</body>
+</html>

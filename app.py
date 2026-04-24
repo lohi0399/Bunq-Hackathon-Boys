@@ -26,10 +26,18 @@ Routes:
 import base64
 import json
 import os
+import secrets
 import time
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request
+from flask import (
+    Flask, jsonify, redirect, render_template,
+    request, url_for, flash,
+)
+from flask_login import (
+    LoginManager, UserMixin, current_user,
+    login_required, login_user, logout_user,
+)
 
 import database as db
 from bunq_client import BunqClient
@@ -38,6 +46,26 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
+
+# ── flask-login setup ─────────────────────────────────────────────────────────
+login_manager = LoginManager(app)
+login_manager.login_view = "login_page"        # redirect here when not logged in
+login_manager.login_message = ""               # suppress default message
+
+
+class User(UserMixin):
+    """Thin wrapper around our DB user dict, satisfying flask-login."""
+    def __init__(self, user_dict: dict):
+        self.id       = user_dict["id"]
+        self.username = user_dict["username"]
+        self.email    = user_dict["email"]
+
+
+@login_manager.user_loader
+def _load_user(user_id: str) -> User | None:
+    row = db.get_user_by_id(int(user_id))
+    return User(row) if row else None
 
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 BUNQ_CURRENCY = "EUR"
@@ -121,16 +149,69 @@ def _format_account(acc: dict) -> dict:
     }
 
 
+# ── Auth pages ───────────────────────────────────────────────────────────────
+
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        user_row = db.verify_user(username, password)
+        if user_row:
+            login_user(User(user_row), remember=True)
+            return redirect(url_for("index"))
+        error = "Invalid username or password."
+    return render_template("login.html", error=error, mode="login")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register_page():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email    = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        confirm  = request.form.get("confirm", "")
+        if not username or not email or not password:
+            error = "All fields are required."
+        elif len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        elif db.get_user_by_username(username):
+            error = "Username already taken."
+        else:
+            user_id = db.create_user(username, email, password)
+            user_row = db.get_user_by_id(user_id)
+            login_user(User(user_row), remember=True)
+            return redirect(url_for("index"))
+    return render_template("login.html", error=error, mode="register")
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login_page"))
+
+
 # ── UI ─────────────────────────────────────────────────────────────────────────
 
 @app.route("/")
+@login_required
 def index():
-    return render_template("index.html")
+    return render_template("index.html", username=current_user.username)
 
 
 # ── Status ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/status")
+@login_required
 def api_status():
     try:
         client = _get_client()
@@ -151,6 +232,7 @@ def api_status():
 # ── Accounts ───────────────────────────────────────────────────────────────────
 
 @app.route("/api/accounts", methods=["GET"])
+@login_required
 def api_list_accounts():
     try:
         client = _get_client()
@@ -164,6 +246,7 @@ def api_list_accounts():
 
 
 @app.route("/api/accounts/init", methods=["POST"])
+@login_required
 def api_init_accounts():
     try:
         client = _get_client()
@@ -180,6 +263,7 @@ def api_init_accounts():
 # ── Payments ───────────────────────────────────────────────────────────────────
 
 @app.route("/api/payment", methods=["POST"])
+@login_required
 def api_make_payment():
     data = request.get_json(force=True) or {}
     amount   = data.get("amount")
@@ -218,6 +302,7 @@ def api_make_payment():
 # ── Request money ──────────────────────────────────────────────────────────────
 
 @app.route("/api/request-money", methods=["POST"])
+@login_required
 def api_request_money():
     data = request.get_json(force=True) or {}
     amount      = data.get("amount")
@@ -247,6 +332,7 @@ def api_request_money():
 # ── bunq.me ────────────────────────────────────────────────────────────────────
 
 @app.route("/api/bunqme", methods=["POST"])
+@login_required
 def api_create_bunqme():
     data = request.get_json(force=True) or {}
     amount      = data.get("amount")
@@ -282,6 +368,7 @@ def api_create_bunqme():
 # ── Transactions ───────────────────────────────────────────────────────────────
 
 @app.route("/api/transactions")
+@login_required
 def api_list_transactions():
     count = min(int(request.args.get("count", 20)), 200)
     account_type = request.args.get("account", "current").lower()
@@ -313,6 +400,7 @@ def api_list_transactions():
 # ── Receipt AI ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/analyze", methods=["POST"])
+@login_required
 def analyze():
     if "receipt" not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
@@ -378,6 +466,7 @@ def analyze():
 
 
 @app.route("/api/log-to-bunq", methods=["POST"])
+@login_required
 def log_to_bunq():
     data = request.get_json(force=True)
     if not data:
@@ -427,6 +516,7 @@ def log_to_bunq():
 
 
 @app.route("/api/receipts")
+@login_required
 def api_list_receipts():
     limit = min(int(request.args.get("limit", 50)), 200)
     receipts = db.list_receipts(limit=limit)
@@ -443,6 +533,7 @@ def api_list_receipts():
 # ── X-Ray Spending Vision ──────────────────────────────────────────────────────
 
 @app.route("/api/xray", methods=["POST"])
+@login_required
 def xray_vision():
     """
     Identify an item in the photo and return brutal financial context:
@@ -548,18 +639,46 @@ def xray_vision():
 
 
 @app.route("/api/xray/history")
+@login_required
 def xray_history():
     limit = min(int(request.args.get("limit", 20)), 100)
     return jsonify(db.list_xray_scans(limit=limit))
 
 
+# ── Database viewer ───────────────────────────────────────────────────────────
+
+@app.route("/db-viewer")
+@login_required
+def db_viewer():
+    stats = db.db_stats()
+    users = db.list_users()
+    receipts = db.list_receipts(limit=200)
+    for r in receipts:
+        try:
+            r["items"] = json.loads(r.get("items_json") or "[]")
+        except Exception:
+            r["items"] = []
+        r.pop("items_json", None)
+    xray_scans = db.list_xray_scans(limit=200)
+    return render_template(
+        "db_viewer.html",
+        stats=stats,
+        users=users,
+        receipts=receipts,
+        xray_scans=xray_scans,
+        username=current_user.username,
+    )
+
+
 # ── Legacy aliases ─────────────────────────────────────────────────────────────
 
 @app.route("/analyze", methods=["POST"])
+@login_required
 def analyze_legacy():
     return analyze()
 
 @app.route("/log-to-bunq", methods=["POST"])
+@login_required
 def log_to_bunq_legacy():
     return log_to_bunq()
 
