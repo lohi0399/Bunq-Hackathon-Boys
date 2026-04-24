@@ -4,592 +4,1094 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>ReceiptAI — bunq Hackathon 7.0</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    :root{--neon:#00ffb3;--neon-dim:#00ffb360;--neon-glow:0 0 24px #00ffb355;--blue:#4f8cff;--purple:#a855f7;--bg:#080c14;--surface:#0e1421;--surface2:#141b2d;--border:#1e2d45;--border-hi:#2a4060;--text:#e2eaf6;--muted:#5a7a9a;--danger:#ff4d6d;--warn:#ffb800;--radius:16px;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+    :root{
+      --neon:#00ffb3;--neon2:#00d492;--neon-dim:#00ffb340;--glow:0 0 20px #00ffb340;
+      --blue:#4f8cff;--purple:#a855f7;--pink:#f472b6;--amber:#fbbf24;
+      --bg:#07090f;--surface:#0d1117;--surface2:#111827;--surface3:#162033;
+      --border:#1e2d3d;--border-hi:#243548;--border-glow:#00ffb325;
+      --text:#e2eaf6;--text2:#8b9cb8;--text3:#4a5e7a;
+      --danger:#f43f5e;--warn:#fbbf24;--success:#00ffb3;
+      --r:14px;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+      --sidebar:240px;
+    }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,179,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,179,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
-    body::after{content:'';position:fixed;top:-40%;left:-20%;width:70%;height:70%;background:radial-gradient(ellipse,rgba(79,140,255,.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+    html,body{height:100%}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden}
 
-    /* Header */
-    header{position:relative;z-index:10;padding:0 32px;height:64px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(8,12,20,.8)}
-    .logo-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--neon),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#000;box-shadow:var(--neon-glow);flex-shrink:0}
-    .logo-text{font-size:16px;font-weight:800;background:linear-gradient(90deg,#fff,var(--neon));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .header-right{margin-left:auto;display:flex;align-items:center;gap:16px}
-    .dot-live{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 8px var(--neon);animation:pdot 2s ease infinite}
-    @keyframes pdot{0%,100%{opacity:1}50%{opacity:.3}}
-    .status-badge{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--neon);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
-    #status-bal{font-family:var(--mono);font-size:12px;color:var(--muted)}
+    /* ── Grid bg ── */
+    body::before{content:'';position:fixed;inset:0;
+      background-image:linear-gradient(rgba(0,255,179,.018) 1px,transparent 1px),
+                       linear-gradient(90deg,rgba(0,255,179,.018) 1px,transparent 1px);
+      background-size:40px 40px;pointer-events:none;z-index:0}
+    /* Ambient glow */
+    body::after{content:'';position:fixed;top:-30%;right:-10%;width:60%;height:60%;
+      background:radial-gradient(ellipse,rgba(79,140,255,.05) 0%,transparent 70%);
+      pointer-events:none;z-index:0}
 
-    /* Layout */
-    .shell{position:relative;z-index:1;display:flex;height:calc(100vh - 64px)}
+    /* ═══ HEADER ═══ */
+    header{position:relative;z-index:20;height:58px;display:flex;align-items:center;
+      gap:12px;padding:0 20px;border-bottom:1px solid var(--border);
+      background:rgba(7,9,15,.92);backdrop-filter:blur(20px)}
+    .logo-mark{width:32px;height:32px;border-radius:8px;flex-shrink:0;
+      background:linear-gradient(135deg,var(--neon),var(--blue));
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;font-size:14px;color:#000;box-shadow:var(--glow)}
+    .logo-text{font-size:15px;font-weight:800;
+      background:linear-gradient(90deg,#fff 30%,var(--neon));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .header-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--neon);
+      box-shadow:0 0 8px var(--neon);animation:pulse 2s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .status-chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
+      font-size:11px;font-weight:600;color:var(--neon);letter-spacing:.5px}
+    #hdr-savings,#hdr-current{font-family:var(--mono);font-size:11px;color:var(--text2)}
 
-    /* Sidebar nav */
-    nav{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:4px}
-    .nav-section{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px;margin-top:8px}
-    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:var(--font)}
-    .nav-item .nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+    /* ═══ SHELL ═══ */
+    .shell{display:flex;height:calc(100vh - 58px);position:relative;z-index:1}
+
+    /* ═══ SIDEBAR ═══ */
+    nav{width:var(--sidebar);flex-shrink:0;background:var(--surface);
+      border-right:1px solid var(--border);display:flex;flex-direction:column;
+      padding:14px 10px;gap:2px;overflow-y:auto}
+    .nav-section{font-family:var(--mono);font-size:9px;font-weight:600;
+      letter-spacing:2px;text-transform:uppercase;color:var(--text3);
+      padding:10px 10px 4px;margin-top:4px}
+    .nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;
+      border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;
+      color:var(--text2);transition:all .13s;border:none;background:none;
+      width:100%;text-align:left;font-family:var(--font)}
+    .nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
     .nav-item:hover{background:var(--surface2);color:var(--text)}
-    .nav-item.active{background:rgba(0,255,179,.08);color:var(--neon);border:1px solid rgba(0,255,179,.15)}
+    .nav-item.active{background:rgba(0,255,179,.08);color:var(--neon);
+      border:1px solid rgba(0,255,179,.14)}
+    .nav-badge{margin-left:auto;background:var(--neon);color:#000;font-size:9px;
+      font-weight:800;font-family:var(--mono);padding:1px 5px;border-radius:999px}
 
-    /* Content */
-    .content{flex:1;overflow-y:auto;padding:28px 32px}
+    /* ═══ CONTENT ═══ */
+    .content{flex:1;overflow-y:auto;padding:24px 28px;position:relative}
     .page{display:none}
     .page.active{display:block}
-    .page-title{font-size:22px;font-weight:800;margin-bottom:4px;letter-spacing:-.5px}
-    .page-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+    .page-header{margin-bottom:22px}
+    .page-title{font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:2px}
+    .page-sub{font-size:12px;color:var(--text2)}
 
-    /* Cards */
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;position:relative;overflow:hidden;margin-bottom:16px}
-    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,179,.2),transparent)}
-    .card-title{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:6px}
-    .card-title::before{content:'';width:2px;height:10px;border-radius:2px;background:var(--neon)}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    @media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+    /* ═══ CARDS ═══ */
+    .card{background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--r);padding:20px;position:relative;overflow:hidden;
+      margin-bottom:14px}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+      background:linear-gradient(90deg,transparent,rgba(0,255,179,.18),transparent)}
+    .card-title{font-family:var(--mono);font-size:9px;font-weight:700;
+      letter-spacing:1.8px;text-transform:uppercase;color:var(--text2);
+      margin-bottom:14px;display:flex;align-items:center;gap:6px}
+    .card-title::before{content:'';width:2px;height:9px;border-radius:2px;background:var(--neon)}
 
-    /* Stat cards */
-    .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
-    @media(max-width:800px){.stat-grid{grid-template-columns:1fr}}
-    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
-    .stat-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-    .stat-value{font-size:26px;font-weight:900;font-family:var(--mono);background:linear-gradient(90deg,var(--neon),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+    /* ═══ GRID ═══ */
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
 
-    /* Form elements */
-    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-    @media(max-width:700px){.form-row{grid-template-columns:1fr}}
-    .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-    label{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
-    input[type=text],input[type=number],input[type=email],select,textarea{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:9px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .2s,box-shadow .2s}
-    input:focus,select:focus,textarea:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(0,255,179,.07)}
+    /* ═══ STATS ═══ */
+    .stat{background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--r);padding:16px 18px}
+    .stat-lbl{font-family:var(--mono);font-size:9px;font-weight:600;
+      letter-spacing:1.8px;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+    .stat-val{font-size:24px;font-weight:900;font-family:var(--mono);
+      background:linear-gradient(90deg,var(--neon),var(--blue));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-sub{font-size:11px;color:var(--text2);margin-top:3px}
+
+    /* ═══ ACCOUNT CARDS ═══ */
+    .acc-card{border-radius:var(--r);padding:18px;position:relative;overflow:hidden;
+      background:linear-gradient(135deg,var(--surface2),var(--surface3));
+      border:1px solid var(--border-hi)}
+    .acc-card.savings{border-color:rgba(0,255,179,.2)}
+    .acc-card.current{border-color:rgba(79,140,255,.2)}
+    .acc-card::after{content:'';position:absolute;top:-40px;right:-40px;width:100px;
+      height:100px;border-radius:50%;opacity:.06}
+    .acc-card.savings::after{background:var(--neon)}
+    .acc-card.current::after{background:var(--blue)}
+    .acc-type{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:2px;
+      text-transform:uppercase;margin-bottom:10px}
+    .acc-type.s{color:var(--neon)}.acc-type.c{color:var(--blue)}
+    .acc-name{font-size:13px;font-weight:700;margin-bottom:2px}
+    .acc-balance{font-family:var(--mono);font-size:26px;font-weight:900}
+    .acc-card.savings .acc-balance{color:var(--neon)}
+    .acc-card.current .acc-balance{color:var(--blue)}
+    .acc-iban{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:6px;
+      letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    /* ═══ FORMS ═══ */
+    .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    @media(max-width:640px){.frow{grid-template-columns:1fr}}
+    .fgroup{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+    label{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1.2px;
+      text-transform:uppercase;color:var(--text3)}
+    input,select,textarea{width:100%;padding:9px 12px;background:var(--surface2);
+      border:1px solid var(--border-hi);border-radius:8px;font-size:13px;
+      color:var(--text);font-family:var(--font);outline:none;
+      transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus,textarea:focus{border-color:var(--neon);
+      box-shadow:0 0 0 2px rgba(0,255,179,.06)}
     select option{background:var(--surface2)}
-    textarea{resize:vertical;min-height:80px}
+    .check-row{display:flex;align-items:center;gap:8px;cursor:pointer}
+    .check-row input[type=checkbox]{width:auto;cursor:pointer}
+    .check-label{font-size:12px;font-weight:500;color:var(--text2);
+      text-transform:none;font-family:var(--font);letter-spacing:0}
 
-    /* Buttons */
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;border:none;font-family:var(--font)}
-    .btn-primary{background:linear-gradient(135deg,#00d492,#00a8ff);color:#000;box-shadow:0 3px 16px rgba(0,212,146,.2)}
-    .btn-primary:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,212,146,.3)}
-    .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border-hi)}
-    .btn-secondary:hover{border-color:var(--neon);color:var(--neon)}
-    .btn-danger{background:rgba(255,77,109,.1);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
-    .btn-danger:hover{background:rgba(255,77,109,.2)}
-    .btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+    /* ═══ BUTTONS ═══ */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+      padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;
+      cursor:pointer;transition:all .13s;border:none;font-family:var(--font);
+      white-space:nowrap}
+    .btn-primary{background:linear-gradient(135deg,var(--neon2),#0098e6);color:#000;
+      box-shadow:0 2px 12px rgba(0,212,146,.15)}
+    .btn-primary:hover{opacity:.85;transform:translateY(-1px);
+      box-shadow:0 5px 20px rgba(0,212,146,.25)}
+    .btn-blue{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+    .btn-blue:hover{opacity:.85;transform:translateY(-1px)}
+    .btn-ghost{background:var(--surface2);color:var(--text2);
+      border:1px solid var(--border-hi)}
+    .btn-ghost:hover{border-color:var(--neon);color:var(--neon)}
+    .btn-danger{background:rgba(244,63,94,.1);color:var(--danger);
+      border:1px solid rgba(244,63,94,.25)}
+    .btn:disabled{opacity:.3;cursor:not-allowed;transform:none!important}
     .btn-full{width:100%}
-    .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .65s linear infinite}
-    .spinner.light{border-color:rgba(255,255,255,.2);border-top-color:var(--text)}
+    .spin{width:13px;height:13px;border:2px solid rgba(0,0,0,.15);
+      border-top-color:currentColor;border-radius:50%;
+      animation:spin .55s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* Table */
-    .table-wrap{overflow-x:auto}
-    table{width:100%;border-collapse:collapse;font-size:13px}
-    th{text-align:left;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--border)}
-    td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--text)}
+    /* ═══ TABLE ═══ */
+    .tbl-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;font-family:var(--mono);font-size:8px;font-weight:700;
+      letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);
+      padding:0 10px 8px;border-bottom:1px solid var(--border)}
+    td{padding:10px 10px;border-bottom:1px solid var(--border);color:var(--text)}
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:rgba(255,255,255,.015)}
-    .td-mono{font-family:var(--mono);font-size:12px}
-    .td-pos{color:var(--neon)}
-    .td-neg{color:var(--danger)}
-    .td-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600}
-    .pill-green{background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.2)}
-    .pill-blue{background:rgba(79,140,255,.1);color:var(--blue);border:1px solid rgba(79,140,255,.2)}
-    .pill-gray{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+    tr:hover td{background:rgba(255,255,255,.012)}
+    .td-mono{font-family:var(--mono);font-size:11px}
+    .pos{color:var(--neon)}.neg{color:var(--danger)}
+    .pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;
+      font-family:var(--mono);font-size:9px;font-weight:700}
+    .pill-g{background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.18)}
+    .pill-b{background:rgba(79,140,255,.1);color:var(--blue);border:1px solid rgba(79,140,255,.18)}
+    .pill-p{background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.18)}
+    .pill-gray{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
 
-    /* Alert / result boxes */
-    .result-box{padding:14px 16px;border-radius:10px;font-size:13px;margin-top:12px;display:none}
-    .result-box.success{background:rgba(0,255,179,.07);border:1px solid rgba(0,255,179,.2);color:var(--neon)}
-    .result-box.error{background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.2);color:var(--danger)}
-    .result-box.info{background:rgba(79,140,255,.07);border:1px solid rgba(79,140,255,.2);color:var(--blue)}
-    .result-val{font-family:var(--mono);font-weight:600;word-break:break-all}
+    /* ═══ RESULT BOXES ═══ */
+    .rbox{padding:12px 14px;border-radius:9px;font-size:13px;margin-top:10px;display:none}
+    .rbox.ok{background:rgba(0,255,179,.06);border:1px solid rgba(0,255,179,.18);color:var(--neon)}
+    .rbox.err{background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.2);color:var(--danger)}
+    .rbox.info{background:rgba(79,140,255,.06);border:1px solid rgba(79,140,255,.2);color:var(--blue)}
+    .rval{font-family:var(--mono);font-weight:700;word-break:break-all}
 
-    /* Receipt AI specific */
-    #drop-zone{border:1.5px dashed var(--border-hi);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(0,255,179,.01);position:relative;overflow:hidden}
-    #drop-zone::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,255,179,.04),transparent 70%);opacity:0;transition:opacity .3s}
-    #drop-zone:hover::before,#drop-zone.drag-over::before{opacity:1}
-    #drop-zone:hover,#drop-zone.drag-over{border-color:var(--neon);box-shadow:0 0 0 1px var(--neon-dim)}
-    .upload-icon-wrap{width:56px;height:56px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:14px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:22px;transition:transform .2s}
-    #drop-zone:hover .upload-icon-wrap{transform:translateY(-3px)}
-    #drop-zone p{font-size:13px;color:var(--muted);line-height:1.7}
-    #drop-zone strong{color:var(--text)}
-    .file-pills{display:flex;justify-content:center;gap:6px;margin-top:10px}
-    .file-pill{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 8px}
-    #file-input{display:none}
-    #preview-wrap{display:none;margin-top:14px;position:relative}
-    #preview-img{width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid var(--border-hi);background:var(--surface2)}
-    .preview-badge{position:absolute;top:8px;right:8px;background:rgba(8,12,20,.9);border:1px solid var(--border-hi);border-radius:7px;padding:4px 8px;font-size:10px;font-weight:600;color:var(--neon);font-family:var(--mono);backdrop-filter:blur(8px)}
-    .change-link{font-size:11px;color:var(--muted);cursor:pointer;margin-top:8px;display:inline-block;transition:color .15s}
+    /* ═══ RECEIPT AI ═══ */
+    .drop-zone{border:1.5px dashed var(--border-hi);border-radius:10px;padding:28px 16px;
+      text-align:center;cursor:pointer;transition:all .18s;
+      background:rgba(0,255,179,.008);position:relative}
+    .drop-zone::before{content:'';position:absolute;inset:0;border-radius:10px;
+      background:radial-gradient(ellipse at center,rgba(0,255,179,.04),transparent 70%);
+      opacity:0;transition:opacity .25s;pointer-events:none}
+    .drop-zone:hover::before,.drop-zone.over::before{opacity:1}
+    .drop-zone:hover,.drop-zone.over{border-color:var(--neon);
+      box-shadow:0 0 0 1px rgba(0,255,179,.2)}
+    .upload-icon{width:48px;height:48px;background:var(--surface2);
+      border:1px solid var(--border-hi);border-radius:12px;
+      margin:0 auto 10px;display:flex;align-items:center;
+      justify-content:center;font-size:20px;transition:transform .2s}
+    .drop-zone:hover .upload-icon{transform:translateY(-2px)}
+    .drop-zone p{font-size:12px;color:var(--text2);line-height:1.6}
+    .file-pills{display:flex;justify-content:center;gap:5px;margin-top:8px}
+    .fpill{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3);
+      background:var(--surface2);border:1px solid var(--border);
+      border-radius:999px;padding:2px 7px}
+    #prev-wrap{display:none;margin-top:12px;position:relative}
+    #prev-img{width:100%;max-height:200px;object-fit:contain;border-radius:9px;
+      border:1px solid var(--border-hi);background:var(--surface2)}
+    .prev-badge{position:absolute;top:7px;right:7px;background:rgba(7,9,15,.92);
+      border:1px solid var(--border-hi);border-radius:6px;padding:3px 7px;
+      font-size:9px;font-weight:700;color:var(--neon);font-family:var(--mono);
+      backdrop-filter:blur(8px)}
+    .change-link{font-size:11px;color:var(--text3);cursor:pointer;margin-top:6px;
+      display:inline-block;transition:color .13s}
     .change-link:hover{color:var(--neon)}
-
-    .result-merchant{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:2px}
-    .result-amount{font-size:34px;font-weight:900;letter-spacing:-1.5px;font-family:var(--mono);background:linear-gradient(90deg,var(--neon),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:4px 0 10px}
-    .meta-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
-    .meta-chip{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:600}
-    .items-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-    .item-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
-    .item-row:last-child{border-bottom:none}
-    .item-price{font-family:var(--mono);font-weight:600;color:var(--neon)}
-    .success-icon{width:52px;height:52px;background:rgba(0,255,179,.1);border:1px solid rgba(0,255,179,.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px;box-shadow:0 0 24px rgba(0,255,179,.12)}
-    .scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);animation:scan 1.8s linear infinite;display:none}
-    @keyframes scan{from{transform:translateY(0);opacity:1}to{transform:translateY(300px);opacity:0}}
-    .sk-line{height:12px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;border-radius:5px;animation:shimmer 1.3s ease infinite;margin-bottom:8px}
-    .sk-block{border-radius:10px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.3s ease infinite;margin-bottom:10px}
+    .scan-bar{position:absolute;top:0;left:0;right:0;height:2px;
+      background:linear-gradient(90deg,transparent,var(--neon),transparent);
+      animation:scan-anim 1.6s linear infinite;display:none}
+    @keyframes scan-anim{from{transform:translateY(0)}to{transform:translateY(260px)}}
+    .sk{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);
+      background-size:200% 100%;border-radius:6px;
+      animation:shimmer 1.2s ease infinite}
     @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
 
-    /* Account cards */
-    .account-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px}
-    .account-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
-    .account-card:hover{border-color:var(--border-hi)}
-    .account-card-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-    .account-card-name{font-size:14px;font-weight:700;margin-bottom:4px}
-    .account-card-balance{font-family:var(--mono);font-size:22px;font-weight:900;color:var(--neon)}
-    .account-card-iban{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.5px}
+    .r-merchant{font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:2px}
+    .r-amount{font-size:30px;font-weight:900;letter-spacing:-1px;font-family:var(--mono);
+      background:linear-gradient(90deg,var(--neon),var(--blue));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:4px 0 10px}
+    .meta-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+    .mchip{display:flex;align-items:center;gap:4px;background:var(--surface2);
+      border:1px solid var(--border-hi);border-radius:6px;
+      padding:3px 8px;font-size:11px;font-weight:600}
+    .items-lbl{font-family:var(--mono);font-size:8px;font-weight:700;
+      letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+    .item-row{display:flex;justify-content:space-between;padding:6px 0;
+      border-bottom:1px solid var(--border);font-size:12px}
+    .item-row:last-child{border-bottom:none}
+    .item-price{font-family:var(--mono);font-weight:700;color:var(--neon)}
 
-    /* Toast */
-    #toast{display:none;position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;animation:toastIn .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;font-family:var(--font)}
-    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(12px) scale(.95)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
-    #toast.success{background:linear-gradient(135deg,#00d492,#00a8ff);color:#000;box-shadow:0 6px 24px rgba(0,212,146,.3)}
-    #toast.error{background:linear-gradient(135deg,#ff4d6d,#c0392b);color:#fff;box-shadow:0 6px 24px rgba(255,77,109,.25)}
+    /* Receipt history */
+    .rec-card{background:var(--surface2);border:1px solid var(--border);
+      border-radius:10px;padding:12px 14px;margin-bottom:8px;
+      display:flex;align-items:center;gap:12px}
+    .rec-emoji{font-size:20px;width:32px;text-align:center;flex-shrink:0}
+    .rec-info{flex:1;min-width:0}
+    .rec-merchant{font-size:13px;font-weight:700;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rec-desc{font-size:11px;color:var(--text2);margin-top:1px}
+    .rec-amt{font-family:var(--mono);font-size:14px;font-weight:800;
+      color:var(--neon);flex-shrink:0}
+
+    /* ═══ X-RAY VISION ═══ */
+    .xray-hero{text-align:center;padding:20px 0 10px}
+    .xray-icon{font-size:48px;margin-bottom:8px;
+      filter:drop-shadow(0 0 16px rgba(168,85,247,.4))}
+    .xray-title{font-size:18px;font-weight:800;margin-bottom:4px;
+      background:linear-gradient(90deg,var(--purple),var(--pink));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .xray-sub{font-size:12px;color:var(--text2)}
+    .xray-drop{border:1.5px dashed rgba(168,85,247,.35);border-radius:10px;
+      padding:28px 16px;text-align:center;cursor:pointer;transition:all .18s;
+      background:rgba(168,85,247,.02)}
+    .xray-drop:hover,.xray-drop.over{border-color:var(--purple);
+      box-shadow:0 0 0 1px rgba(168,85,247,.2);background:rgba(168,85,247,.04)}
+    .xray-upload-icon{font-size:28px;margin-bottom:8px}
+    .camera-btn{display:inline-flex;align-items:center;gap:6px;
+      background:rgba(168,85,247,.15);color:var(--purple);
+      border:1px solid rgba(168,85,247,.3);border-radius:8px;
+      padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;
+      margin-top:10px;font-family:var(--font);transition:all .15s}
+    .camera-btn:hover{background:rgba(168,85,247,.25)}
+
+    .impact-card{background:var(--surface2);border:1px solid var(--border-hi);
+      border-radius:10px;padding:14px 16px;margin-bottom:8px}
+    .impact-label{font-family:var(--mono);font-size:9px;font-weight:700;
+      letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+    .impact-val{font-size:20px;font-weight:900;font-family:var(--mono)}
+    .impact-val.hours{color:var(--amber)}
+    .impact-val.sp500{color:var(--neon)}
+    .impact-val.pct{color:var(--pink)}
+    .impact-sub{font-size:11px;color:var(--text2);margin-top:2px}
+    .impact-msg{font-size:13px;font-weight:600;padding:10px 14px;
+      background:var(--surface2);border-left:2px solid var(--purple);
+      border-radius:0 8px 8px 0;margin-bottom:6px;color:var(--text)}
+
+    /* ═══ HISTORY TABS ═══ */
+    .htab-bar{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}
+    .htab{padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;
+      color:var(--text3);border:none;background:none;font-family:var(--font);
+      border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .13s}
+    .htab.active{color:var(--neon);border-bottom-color:var(--neon)}
+
+    /* ═══ TOAST ═══ */
+    #toast{display:none;position:fixed;bottom:24px;left:50%;
+      transform:translateX(-50%);padding:10px 18px;border-radius:9px;
+      font-size:13px;font-weight:700;z-index:9999;
+      animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);
+      white-space:nowrap;font-family:var(--font)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px) scale(.95)}
+      to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+    #toast.ok{background:linear-gradient(135deg,var(--neon2),#0098e6);color:#000;
+      box-shadow:0 4px 20px rgba(0,212,146,.25)}
+    #toast.err{background:linear-gradient(135deg,var(--danger),#9b1e30);color:#fff;
+      box-shadow:0 4px 20px rgba(244,63,94,.2)}
+
+    /* ═══ EMPTY STATES ═══ */
+    .empty{text-align:center;padding:32px 0;color:var(--text3);font-size:13px}
+    .empty-icon{font-size:32px;margin-bottom:8px;opacity:.4}
 
     /* Scrollbar */
-    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar{width:5px;height:5px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:3px}
   </style>
 </head>
 <body>
+
+<!-- ══ HEADER ══ -->
 <header>
   <div class="logo-mark">b</div>
   <span class="logo-text">ReceiptAI</span>
   <div class="header-right">
-    <div class="status-badge"><div class="dot-live"></div>LIVE</div>
-    <span id="status-bal">Loading…</span>
+    <div class="status-chip"><div class="live-dot"></div>LIVE</div>
+    <span id="hdr-savings" title="Savings">S —</span>
+    <span id="hdr-current" title="Current">C —</span>
   </div>
 </header>
 
 <div class="shell">
-  <nav>
-    <div class="nav-section">Overview</div>
-    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
-      <span class="nav-icon">⬡</span> Dashboard
-    </button>
 
-    <div class="nav-section">AI Features</div>
-    <button class="nav-item" data-page="receipt-ai" onclick="showPage('receipt-ai',this)">
-      <span class="nav-icon">🧾</span> Receipt AI
-    </button>
+<!-- ══ SIDEBAR ══ -->
+<nav>
+  <div class="nav-section">Overview</div>
+  <button class="nav-item active" data-page="dashboard" onclick="nav('dashboard',this)">
+    <span class="nav-icon">⬡</span>Dashboard
+  </button>
 
-    <div class="nav-section">Banking</div>
-    <button class="nav-item" data-page="accounts" onclick="showPage('accounts',this)">
-      <span class="nav-icon">🏦</span> Accounts
-    </button>
-    <button class="nav-item" data-page="transactions" onclick="showPage('transactions',this)">
-      <span class="nav-icon">📋</span> Transactions
-    </button>
-    <button class="nav-item" data-page="payment" onclick="showPage('payment',this)">
-      <span class="nav-icon">💸</span> Send Payment
-    </button>
-    <button class="nav-item" data-page="request" onclick="showPage('request',this)">
-      <span class="nav-icon">📥</span> Request Money
-    </button>
-    <button class="nav-item" data-page="bunqme" onclick="showPage('bunqme',this)">
-      <span class="nav-icon">🔗</span> bunq.me Link
-    </button>
-  </nav>
+  <div class="nav-section">AI Features</div>
+  <button class="nav-item" data-page="receipt-ai" onclick="nav('receipt-ai',this)">
+    <span class="nav-icon">🧾</span>Receipt AI
+  </button>
+  <button class="nav-item" data-page="xray" onclick="nav('xray',this)">
+    <span class="nav-icon">🔬</span>X-Ray Vision
+  </button>
 
-  <div class="content">
+  <div class="nav-section">Banking</div>
+  <button class="nav-item" data-page="accounts" onclick="nav('accounts',this)">
+    <span class="nav-icon">🏦</span>Accounts
+  </button>
+  <button class="nav-item" data-page="transactions" onclick="nav('transactions',this)">
+    <span class="nav-icon">📋</span>Transactions
+  </button>
+  <button class="nav-item" data-page="payment" onclick="nav('payment',this)">
+    <span class="nav-icon">💸</span>Send Payment
+  </button>
+  <button class="nav-item" data-page="request" onclick="nav('request',this)">
+    <span class="nav-icon">📥</span>Request Money
+  </button>
+  <button class="nav-item" data-page="bunqme" onclick="nav('bunqme',this)">
+    <span class="nav-icon">🔗</span>bunq.me Link
+  </button>
 
-    <!-- ══ DASHBOARD ══ -->
-    <div class="page active" id="page-dashboard">
+  <div class="nav-section">History</div>
+  <button class="nav-item" data-page="history" onclick="nav('history',this)">
+    <span class="nav-icon">🗂</span>Scan History
+  </button>
+</nav>
+
+<!-- ══ CONTENT ══ -->
+<div class="content">
+
+  <!-- ─── DASHBOARD ─── -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
       <div class="page-title">Dashboard</div>
-      <div class="page-sub">Your bunq sandbox overview</div>
-      <div class="stat-grid" id="stat-grid">
-        <div class="stat-card"><div class="stat-label">User ID</div><div class="stat-value" id="stat-uid">—</div></div>
-        <div class="stat-card"><div class="stat-label">Primary Balance</div><div class="stat-value" id="stat-bal">—</div><div class="stat-sub" id="stat-cur"></div></div>
-        <div class="stat-card"><div class="stat-label">Accounts</div><div class="stat-value" id="stat-acc">—</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Quick Actions</div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px">
-          <button class="btn btn-primary" onclick="showPage('receipt-ai',document.querySelector('[data-page=receipt-ai]'))">🧾 Scan Receipt</button>
-          <button class="btn btn-secondary" onclick="showPage('payment',document.querySelector('[data-page=payment]'))">💸 Send Payment</button>
-          <button class="btn btn-secondary" onclick="showPage('request',document.querySelector('[data-page=request]'))">📥 Request Money</button>
-          <button class="btn btn-secondary" onclick="showPage('bunqme',document.querySelector('[data-page=bunqme]'))">🔗 Create bunq.me</button>
-          <button class="btn btn-secondary" onclick="loadTransactions()">🔄 Refresh Transactions</button>
+      <div class="page-sub">bunq sandbox • real-time account view</div>
+    </div>
+
+    <div class="g3" style="margin-bottom:14px">
+      <div class="stat"><div class="stat-lbl">User ID</div><div class="stat-val" id="d-uid">—</div></div>
+      <div class="stat"><div class="stat-lbl">Savings Balance</div><div class="stat-val" id="d-sav">—</div><div class="stat-sub">EUR</div></div>
+      <div class="stat"><div class="stat-lbl">Current Balance</div><div class="stat-val" id="d-cur">—</div><div class="stat-sub">EUR</div></div>
+    </div>
+    <div class="g3" style="margin-bottom:14px">
+      <div class="stat"><div class="stat-lbl">Receipts Scanned</div><div class="stat-val" id="d-recs">—</div></div>
+      <div class="stat"><div class="stat-lbl">Quick Actions</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="nav('receipt-ai',navBtn('receipt-ai'))">🧾 Scan</button>
+          <button class="btn btn-blue" onclick="nav('xray',navBtn('xray'))">🔬 X-Ray</button>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">Recent Transactions</div>
-        <div id="dash-txns"><div style="color:var(--muted);font-size:13px">Loading…</div></div>
+      <div class="stat"><div class="stat-lbl">Banking</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="nav('payment',navBtn('payment'))">💸 Pay</button>
+          <button class="btn btn-ghost" onclick="nav('request',navBtn('request'))">📥 Request</button>
+        </div>
       </div>
     </div>
 
-    <!-- ══ RECEIPT AI ══ -->
-    <div class="page" id="page-receipt-ai">
+    <div class="card">
+      <div class="card-title">Recent Transactions</div>
+      <div id="dash-txns"><div class="empty"><div class="empty-icon">📋</div>Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ─── RECEIPT AI ─── -->
+  <div class="page" id="page-receipt-ai">
+    <div class="page-header">
       <div class="page-title">Receipt AI</div>
-      <div class="page-sub">Drop a receipt photo — Claude reads it and logs it to bunq</div>
-      <div class="grid-2">
+      <div class="page-sub">Scan a receipt → Claude analyses it → logged to bunq</div>
+    </div>
+
+    <div class="g2">
+      <!-- Upload col -->
+      <div>
         <div class="card">
           <div class="card-title">Upload Receipt</div>
-          <div id="drop-zone" role="button" tabindex="0">
-            <div class="upload-icon-wrap">🧾</div>
-            <p><strong>Drag &amp; drop</strong> or <strong>click to browse</strong></p>
+          <div class="drop-zone" id="drop-zone" role="button" tabindex="0">
+            <div class="upload-icon">🧾</div>
+            <p><strong>Drag &amp; drop</strong> or click to browse</p>
+            <p style="font-size:11px;margin-top:4px">On mobile: use camera button below</p>
             <div class="file-pills">
-              <span class="file-pill">JPG</span><span class="file-pill">PNG</span>
-              <span class="file-pill">WEBP</span><span class="file-pill">MAX 10MB</span>
+              <span class="fpill">JPG</span><span class="fpill">PNG</span>
+              <span class="fpill">WEBP</span><span class="fpill">10MB max</span>
             </div>
           </div>
-          <input type="file" id="file-input" accept="image/jpeg,image/png,image/gif,image/webp"/>
-          <div id="preview-wrap">
-            <img id="preview-img" alt="Receipt preview"/>
-            <div class="preview-badge">READY</div><br>
+
+          <!-- hidden file inputs -->
+          <input type="file" id="file-input" accept="image/*" style="display:none"/>
+          <input type="file" id="cam-input" accept="image/*" capture="environment" style="display:none"/>
+
+          <!-- Camera button (works on mobile) -->
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="camera-btn" onclick="document.getElementById('cam-input').click()">📷 Use Camera</button>
+            <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('file-input').click()">📁 Browse File</button>
+          </div>
+
+          <div id="prev-wrap">
+            <img id="prev-img" alt="Receipt preview"/>
+            <div class="prev-badge">READY</div><br>
             <span class="change-link" id="change-btn">↩ Change image</span>
           </div>
-          <button class="btn btn-primary btn-full" id="analyze-btn" style="margin-top:14px" disabled>
-            <span id="analyze-label">✦ Analyse with Claude AI</span>
+
+          <div class="fgroup" style="margin-top:12px">
+            <label>Log to Account</label>
+            <select id="r-account">
+              <option value="current">Current Account</option>
+              <option value="savings">Savings Account</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="analyze-btn" disabled>
+            <span id="analyze-lbl">✦ Analyse with Claude AI</span>
           </button>
         </div>
+      </div>
 
-        <div class="card" id="results-card" style="display:none">
-          <div class="scan-line" id="scan-line"></div>
+      <!-- Results col -->
+      <div>
+        <div class="card" id="results-card" style="display:none;position:relative">
+          <div class="scan-bar" id="scan-bar"></div>
           <div class="card-title">AI Analysis</div>
-          <div id="results-content"></div>
+          <div id="results-body"></div>
+        </div>
+        <!-- Receipt history preview -->
+        <div class="card">
+          <div class="card-title">Recent Scans <span style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0" id="rec-count-badge"></span></div>
+          <div id="recent-receipts"><div class="empty"><div class="empty-icon">🧾</div>No receipts yet</div></div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ══ ACCOUNTS ══ -->
-    <div class="page" id="page-accounts">
-      <div class="page-title">Monetary Accounts</div>
-      <div class="page-sub">View and create bunq bank accounts</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <button class="btn btn-secondary" onclick="loadAccounts()">🔄 Refresh</button>
-        <button class="btn btn-primary" onclick="document.getElementById('create-acc-form').style.display=document.getElementById('create-acc-form').style.display==='none'?'block':'none'">+ New Account</button>
-      </div>
-      <div id="create-acc-form" style="display:none" class="card">
-        <div class="card-title">Create Account</div>
-        <div class="form-group"><label>Account Name</label><input id="new-acc-name" type="text" placeholder="e.g. Savings Account" maxlength="50"/></div>
-        <button class="btn btn-primary" id="create-acc-btn" onclick="createAccount()"><span id="create-acc-label">Create Account</span></button>
-        <div class="result-box" id="create-acc-result"></div>
-      </div>
-      <div id="accounts-list"><div style="color:var(--muted);font-size:13px">Loading…</div></div>
+  <!-- ─── X-RAY VISION ─── -->
+  <div class="page" id="page-xray">
+    <div class="page-header">
+      <div class="page-title">X-Ray Spending Vision</div>
+      <div class="page-sub">Point camera at any item — see its real financial cost</div>
     </div>
 
-    <!-- ══ TRANSACTIONS ══ -->
-    <div class="page" id="page-transactions">
-      <div class="page-title">Transactions</div>
-      <div class="page-sub">Payment history for your primary account</div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
-        <select id="txn-count" style="width:auto;padding:8px 12px">
-          <option value="10">Last 10</option>
-          <option value="20" selected>Last 20</option>
-          <option value="50">Last 50</option>
-          <option value="200">Last 200</option>
-        </select>
-        <button class="btn btn-secondary" onclick="loadTransactions()">🔄 Load</button>
-      </div>
+    <div class="g2">
+      <!-- Upload col -->
       <div class="card">
-        <div id="txns-table"><div style="color:var(--muted);font-size:13px">Click Load to fetch transactions.</div></div>
+        <div class="xray-hero">
+          <div class="xray-icon">🔬</div>
+          <div class="xray-title">Spending Reality Check</div>
+          <div class="xray-sub">AI identifies the item and shows brutal financial truth</div>
+        </div>
+        <div class="xray-drop" id="xray-drop" role="button" tabindex="0">
+          <div class="xray-upload-icon">📸</div>
+          <p style="font-size:12px;color:var(--text2)">Photo of an item you're thinking of buying</p>
+          <div class="file-pills" style="margin-top:8px">
+            <span class="fpill">Shoes</span><span class="fpill">Electronics</span>
+            <span class="fpill">Anything</span>
+          </div>
+        </div>
+        <input type="file" id="xray-file" accept="image/*" style="display:none"/>
+        <input type="file" id="xray-cam" accept="image/*" capture="environment" style="display:none"/>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="camera-btn" onclick="document.getElementById('xray-cam').click()">📷 Aim Camera</button>
+          <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('xray-file').click()">📁 Upload Photo</button>
+        </div>
+        <div id="xray-prev-wrap" style="display:none;margin-top:12px">
+          <img id="xray-prev" alt="Item preview" style="width:100%;max-height:180px;object-fit:contain;border-radius:9px;border:1px solid var(--border-hi);background:var(--surface2)"/>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;cursor:pointer" onclick="document.getElementById('xray-file').click()">↩ Change</div>
+        </div>
+        <button class="btn btn-blue btn-full" id="xray-btn" style="margin-top:12px" disabled>
+          <span id="xray-lbl">🔬 Analyse Item</span>
+        </button>
+      </div>
+
+      <!-- Results col -->
+      <div>
+        <div id="xray-results-wrap" style="display:none">
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title" id="xray-item-name">Item Identified</div>
+            <div id="xray-item-desc" style="font-size:13px;color:var(--text2);margin-bottom:14px"></div>
+            <div style="font-size:28px;font-weight:900;font-family:var(--mono);
+              background:linear-gradient(90deg,var(--purple),var(--pink));
+              -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px"
+              id="xray-price"></div>
+            <div style="font-size:11px;color:var(--text3)" id="xray-confidence"></div>
+          </div>
+
+          <div class="g2" style="margin-bottom:14px">
+            <div class="impact-card">
+              <div class="impact-label">⏰ Hours of Work</div>
+              <div class="impact-val hours" id="xi-hours">—</div>
+              <div class="impact-sub">@ avg €18/hr post-tax</div>
+            </div>
+            <div class="impact-card">
+              <div class="impact-label">📈 S&P 500 in 10 Years</div>
+              <div class="impact-val sp500" id="xi-sp500">—</div>
+              <div class="impact-sub">if invested today (10% p.a.)</div>
+            </div>
+          </div>
+          <div class="impact-card" style="margin-bottom:14px">
+            <div class="impact-label">💼 Monthly Salary</div>
+            <div class="impact-val pct" id="xi-pct">—</div>
+            <div class="impact-sub">of avg Dutch net salary (€2,200/mo)</div>
+          </div>
+
+          <div id="xray-impacts"></div>
+        </div>
+
+        <!-- X-Ray history -->
+        <div class="card">
+          <div class="card-title">Previous Scans</div>
+          <div id="xray-history-list"><div class="empty"><div class="empty-icon">🔬</div>No scans yet</div></div>
+        </div>
       </div>
     </div>
+  </div>
 
-    <!-- ══ SEND PAYMENT ══ -->
-    <div class="page" id="page-payment">
+  <!-- ─── ACCOUNTS ─── -->
+  <div class="page" id="page-accounts">
+    <div class="page-header">
+      <div class="page-title">Accounts</div>
+      <div class="page-sub">2 fixed accounts — Savings &amp; Current</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-ghost" onclick="loadAccounts()">🔄 Refresh</button>
+      <button class="btn btn-primary" id="init-btn" onclick="initAccounts()">⚡ Provision Accounts</button>
+    </div>
+    <div class="g2" id="accounts-area">
+      <div class="stat"><div class="empty"><div class="empty-icon">🏦</div>Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ─── TRANSACTIONS ─── -->
+  <div class="page" id="page-transactions">
+    <div class="page-header">
+      <div class="page-title">Transactions</div>
+      <div class="page-sub">Payment history by account</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+      <select id="txn-account" style="width:auto;padding:8px 12px">
+        <option value="current">Current Account</option>
+        <option value="savings">Savings Account</option>
+      </select>
+      <select id="txn-count" style="width:auto;padding:8px 12px">
+        <option value="10">Last 10</option>
+        <option value="20" selected>Last 20</option>
+        <option value="50">Last 50</option>
+      </select>
+      <button class="btn btn-ghost" onclick="loadTransactions()">🔄 Load</button>
+    </div>
+    <div class="card">
+      <div id="txns-body"><div class="empty"><div class="empty-icon">📋</div>Click Load to fetch transactions.</div></div>
+    </div>
+  </div>
+
+  <!-- ─── SEND PAYMENT ─── -->
+  <div class="page" id="page-payment">
+    <div class="page-header">
       <div class="page-title">Send Payment</div>
       <div class="page-sub">Transfer EUR from your sandbox account</div>
-      <div class="card" style="max-width:540px">
-        <div class="card-title">Payment Details</div>
-        <div class="form-row">
-          <div class="form-group"><label>Amount (EUR)</label><input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="10.00"/></div>
-          <div class="form-group"><label>Recipient Email</label><input id="pay-email" type="email" value="sugardaddy@bunq.com"/></div>
-        </div>
-        <div class="form-group"><label>Recipient Name</label><input id="pay-name" type="text" placeholder="Sugar Daddy"/></div>
-        <div class="form-group"><label>Description</label><input id="pay-desc" type="text" placeholder="Hackathon test payment" maxlength="140"/></div>
-        <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;margin-bottom:16px">
-          <input type="checkbox" id="pay-fund" style="width:auto"/>
-          <label for="pay-fund" style="text-transform:none;font-family:var(--font);font-size:13px;letter-spacing:0;cursor:pointer">Request €500 from Sugar Daddy first (fund account)</label>
-        </div>
-        <button class="btn btn-primary btn-full" id="pay-btn" onclick="sendPayment()"><span id="pay-label">💸 Send Payment</span></button>
-        <div class="result-box" id="pay-result"></div>
-      </div>
     </div>
+    <div class="card" style="max-width:520px">
+      <div class="card-title">Payment Details</div>
+      <div class="frow">
+        <div class="fgroup"><label>Amount (EUR)</label><input id="pay-amt" type="number" min="0.01" step="0.01" placeholder="10.00"/></div>
+        <div class="fgroup"><label>From Account</label>
+          <select id="pay-acct"><option value="current">Current</option><option value="savings">Savings</option></select>
+        </div>
+      </div>
+      <div class="fgroup"><label>Recipient Email</label><input id="pay-email" type="email" value="sugardaddy@bunq.com"/></div>
+      <div class="fgroup"><label>Recipient Name</label><input id="pay-name" type="text" placeholder="Sugar Daddy"/></div>
+      <div class="fgroup"><label>Description</label><input id="pay-desc" type="text" placeholder="Test payment" maxlength="140"/></div>
+      <div class="fgroup">
+        <label class="check-row"><input type="checkbox" id="pay-fund"/><span class="check-label">Request €500 from Sugar Daddy first (top-up sandbox)</span></label>
+      </div>
+      <button class="btn btn-primary btn-full" id="pay-btn" onclick="sendPayment()">
+        <span id="pay-lbl">💸 Send Payment</span>
+      </button>
+      <div class="rbox" id="pay-res"></div>
+    </div>
+  </div>
 
-    <!-- ══ REQUEST MONEY ══ -->
-    <div class="page" id="page-request">
+  <!-- ─── REQUEST MONEY ─── -->
+  <div class="page" id="page-request">
+    <div class="page-header">
       <div class="page-title">Request Money</div>
       <div class="page-sub">Create a RequestInquiry — ask someone to pay you</div>
-      <div class="card" style="max-width:540px">
-        <div class="card-title">Request Details</div>
-        <div class="form-row">
-          <div class="form-group"><label>Amount (EUR)</label><input id="req-amount" type="number" min="0.01" step="0.01" placeholder="25.00"/></div>
-          <div class="form-group"><label>From Email</label><input id="req-email" type="email" value="sugardaddy@bunq.com"/></div>
-        </div>
-        <div class="form-group"><label>From Name</label><input id="req-name" type="text" placeholder="Sugar Daddy"/></div>
-        <div class="form-group"><label>Description</label><input id="req-desc" type="text" placeholder="Expense split" maxlength="140"/></div>
-        <button class="btn btn-primary btn-full" id="req-btn" onclick="requestMoney()"><span id="req-label">📥 Request Money</span></button>
-        <div class="result-box" id="req-result"></div>
-      </div>
     </div>
+    <div class="card" style="max-width:520px">
+      <div class="card-title">Request Details</div>
+      <div class="frow">
+        <div class="fgroup"><label>Amount (EUR)</label><input id="req-amt" type="number" min="0.01" step="0.01" placeholder="25.00"/></div>
+        <div class="fgroup"><label>To Account</label>
+          <select id="req-acct"><option value="current">Current</option><option value="savings">Savings</option></select>
+        </div>
+      </div>
+      <div class="fgroup"><label>From Email</label><input id="req-email" type="email" value="sugardaddy@bunq.com"/></div>
+      <div class="fgroup"><label>From Name</label><input id="req-name" type="text" placeholder="Sugar Daddy"/></div>
+      <div class="fgroup"><label>Description</label><input id="req-desc" type="text" placeholder="Expense split" maxlength="140"/></div>
+      <button class="btn btn-primary btn-full" id="req-btn" onclick="requestMoney()">
+        <span id="req-lbl">📥 Request Money</span>
+      </button>
+      <div class="rbox" id="req-res"></div>
+    </div>
+  </div>
 
-    <!-- ══ BUNQ.ME ══ -->
-    <div class="page" id="page-bunqme">
+  <!-- ─── BUNQ.ME ─── -->
+  <div class="page" id="page-bunqme">
+    <div class="page-header">
       <div class="page-title">bunq.me Payment Link</div>
       <div class="page-sub">Generate a shareable link anyone can pay</div>
-      <div class="card" style="max-width:540px">
-        <div class="card-title">Link Details</div>
-        <div class="form-row">
-          <div class="form-group"><label>Amount (EUR)</label><input id="bme-amount" type="number" min="0.01" step="0.01" placeholder="5.00"/></div>
+    </div>
+    <div class="card" style="max-width:520px">
+      <div class="card-title">Link Details</div>
+      <div class="frow">
+        <div class="fgroup"><label>Amount (EUR)</label><input id="bme-amt" type="number" min="0.01" step="0.01" placeholder="5.00"/></div>
+        <div class="fgroup"><label>Account</label>
+          <select id="bme-acct"><option value="current">Current</option><option value="savings">Savings</option></select>
         </div>
-        <div class="form-group"><label>Description</label><input id="bme-desc" type="text" placeholder="Hackathon donation" maxlength="140"/></div>
-        <button class="btn btn-primary btn-full" id="bme-btn" onclick="createBunqme()"><span id="bme-label">🔗 Create Payment Link</span></button>
-        <div class="result-box" id="bme-result"></div>
+      </div>
+      <div class="fgroup"><label>Description</label><input id="bme-desc" type="text" placeholder="Hackathon donation" maxlength="140"/></div>
+      <button class="btn btn-primary btn-full" id="bme-btn" onclick="createBunqme()">
+        <span id="bme-lbl">🔗 Create Payment Link</span>
+      </button>
+      <div class="rbox" id="bme-res"></div>
+    </div>
+  </div>
+
+  <!-- ─── HISTORY ─── -->
+  <div class="page" id="page-history">
+    <div class="page-header">
+      <div class="page-title">Scan History</div>
+      <div class="page-sub">All receipts and X-Ray scans from your database</div>
+    </div>
+    <div class="htab-bar">
+      <button class="htab active" id="htab-receipts" onclick="switchHistTab('receipts')">🧾 Receipts</button>
+      <button class="htab" id="htab-xray" onclick="switchHistTab('xray')">🔬 X-Ray Scans</button>
+    </div>
+    <div id="hist-receipts">
+      <div class="card">
+        <div id="hist-rec-body"><div class="empty"><div class="empty-icon">🧾</div>Loading…</div></div>
       </div>
     </div>
+    <div id="hist-xray" style="display:none">
+      <div class="card">
+        <div id="hist-xray-body"><div class="empty"><div class="empty-icon">🔬</div>Loading…</div></div>
+      </div>
+    </div>
+  </div>
 
-  </div><!-- /content -->
+</div><!-- /content -->
 </div><!-- /shell -->
 
 <div id="toast"></div>
 
 <script>
-  // ── Navigation ────────────────────────────────────────────────────────
-  function showPage(id, btn) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-    document.getElementById('page-' + id).classList.add('active');
-    btn.classList.add('active');
-  }
+// ═══ NAVIGATION ══════════════════════════════════════════════════════════════
+function nav(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'accounts') loadAccounts();
+  if (id === 'transactions') loadTransactions();
+  if (id === 'history') { loadHistReceipts(); loadHistXray(); }
+  if (id === 'xray') loadXrayHistory();
+}
+function navBtn(id) { return document.querySelector(`[data-page="${id}"]`); }
 
-  // ── Helpers ───────────────────────────────────────────────────────────
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// ═══ UTILITIES ═══════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+let toastT;
+function toast(msg, type='ok') {
+  clearTimeout(toastT);
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = type; el.style.display = 'block';
+  toastT = setTimeout(() => el.style.display = 'none', 3200);
+}
+function setBtn(btnId, lblId, loading, txt) {
+  const b = document.getElementById(btnId), l = document.getElementById(lblId);
+  b.disabled = loading;
+  l.innerHTML = loading ? `<div class="spin"></div> ${txt}` : txt;
+}
+function showRes(id, html, type='ok') {
+  const el = document.getElementById(id);
+  el.style.display = 'block'; el.className = 'rbox ' + type; el.innerHTML = html;
+}
+async function api(url, opts={}) {
+  const r = await fetch(url, opts);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+function fmt(v) { return Number(v||0).toFixed(2); }
 
-  let toastTmr;
-  function toast(msg, type='success') {
-    clearTimeout(toastTmr);
-    const el = document.getElementById('toast');
-    el.textContent = msg; el.className = type; el.style.display = 'block';
-    toastTmr = setTimeout(() => el.style.display = 'none', 3500);
-  }
+// ═══ STATUS ═══════════════════════════════════════════════════════════════════
+async function loadStatus() {
+  try {
+    const d = await api('/api/status');
+    document.getElementById('d-uid').textContent  = d.user_id;
+    document.getElementById('d-sav').textContent  = `€${fmt(d.savings_balance)}`;
+    document.getElementById('d-cur').textContent  = `€${fmt(d.current_balance)}`;
+    document.getElementById('d-recs').textContent = d.receipt_count;
+    document.getElementById('hdr-savings').textContent = `S €${fmt(d.savings_balance)}`;
+    document.getElementById('hdr-current').textContent = `C €${fmt(d.current_balance)}`;
+    document.getElementById('rec-count-badge').textContent = `${d.receipt_count} saved`;
+  } catch(e) { console.warn('Status:', e.message); }
+}
 
-  function setBtn(id, labelId, loading, text) {
-    const btn = document.getElementById(id);
-    const lbl = document.getElementById(labelId);
-    btn.disabled = loading;
-    lbl.innerHTML = loading ? '<div class="spinner light"></div> ' + text : text;
-  }
-
-  function showResult(id, msg, type='success') {
-    const el = document.getElementById(id);
-    el.style.display = 'block';
-    el.className = 'result-box ' + type;
-    el.innerHTML = msg;
-  }
-
-  async function api(url, opts={}) {
-    const res = await fetch(url, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return data;
-  }
-
-  // ── Status ────────────────────────────────────────────────────────────
-  async function loadStatus() {
-    try {
-      const d = await api('/api/status');
-      document.getElementById('stat-uid').textContent = d.user_id;
-      document.getElementById('stat-bal').textContent = `€${d.primary_balance}`;
-      document.getElementById('stat-cur').textContent = d.primary_currency;
-      document.getElementById('stat-acc').textContent = d.account_count;
-      document.getElementById('status-bal').textContent = `€${d.primary_balance} EUR`;
-    } catch(e) { document.getElementById('status-bal').textContent = 'Offline'; }
-  }
-
-  // ── Accounts ──────────────────────────────────────────────────────────
-  async function loadAccounts() {
-    const el = document.getElementById('accounts-list');
-    el.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
-    try {
-      const accounts = await api('/api/accounts');
-      if (!accounts.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No accounts found.</div>'; return; }
-      el.innerHTML = '<div class="account-cards">' + accounts.map(a => `
-        <div class="account-card">
-          <div class="account-card-label">${esc(a.status)}</div>
-          <div class="account-card-name">${esc(a.description || 'Account')}</div>
-          <div class="account-card-balance">€${esc(a.balance)}</div>
-          <div class="account-card-iban">${esc(a.iban || 'No IBAN')}</div>
-        </div>`).join('') + '</div>';
-    } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
-  }
-
-  async function createAccount() {
-    const name = document.getElementById('new-acc-name').value.trim() || 'New Account';
-    setBtn('create-acc-btn','create-acc-label',true,'Creating…');
-    try {
-      const d = await api('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({description: name}) });
-      showResult('create-acc-result', `✓ Account created — ID <span class="result-val">#${esc(String(d.account_id))}</span>`, 'success');
-      toast('Account created!');
-      loadAccounts();
-    } catch(e) { showResult('create-acc-result', esc(e.message), 'error'); toast(e.message, 'error'); }
-    finally { setBtn('create-acc-btn','create-acc-label',false,'Create Account'); }
-  }
-
-  // ── Transactions ──────────────────────────────────────────────────────
-  async function loadTransactions(dashMode=false) {
-    const count = dashMode ? 5 : parseInt(document.getElementById('txn-count')?.value || 10);
-    const el = document.getElementById(dashMode ? 'dash-txns' : 'txns-table');
-    el.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
-    try {
-      const txns = await api(`/api/transactions?count=${count}`);
-      if (!txns.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No transactions yet — send a payment first.</div>'; return; }
-      el.innerHTML = `<div class="table-wrap"><table>
-        <thead><tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Type</th></tr></thead>
-        <tbody>${txns.map(t => {
-          const pos = parseFloat(t.amount) > 0;
-          return `<tr>
-            <td class="td-mono" style="font-size:11px;color:var(--muted)">${esc(t.date)}</td>
-            <td class="td-mono ${pos?'td-pos':'td-neg'}">${pos?'+':''}${esc(t.amount)} ${esc(t.currency||'EUR')}</td>
-            <td>${esc(t.counterparty)}</td>
-            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</td>
-            <td><span class="td-pill ${pos?'pill-green':'pill-blue'}">${esc(t.type||'—')}</span></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
-    } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
-  }
-
-  // ── Payment ───────────────────────────────────────────────────────────
-  async function sendPayment() {
-    const amount = document.getElementById('pay-amount').value;
-    const email  = document.getElementById('pay-email').value.trim();
-    const name   = document.getElementById('pay-name').value.trim();
-    const desc   = document.getElementById('pay-desc').value.trim();
-    const fund   = document.getElementById('pay-fund').checked;
-    if (!amount || !email) { toast('Amount and email are required', 'error'); return; }
-    setBtn('pay-btn','pay-label',true,'Processing…');
-    try {
-      const d = await api('/api/payment', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({amount, to_email:email, to_name:name, description:desc, fund_first:fund}) });
-      showResult('pay-result', `✓ Payment sent — ID <span class="result-val">#${esc(String(d.payment_id))}</span>`, 'success');
-      toast('Payment sent!');
-      loadStatus();
-    } catch(e) { showResult('pay-result', esc(e.message), 'error'); toast(e.message, 'error'); }
-    finally { setBtn('pay-btn','pay-label',false,'💸 Send Payment'); }
-  }
-
-  // ── Request money ─────────────────────────────────────────────────────
-  async function requestMoney() {
-    const amount = document.getElementById('req-amount').value;
-    const email  = document.getElementById('req-email').value.trim();
-    const name   = document.getElementById('req-name').value.trim();
-    const desc   = document.getElementById('req-desc').value.trim();
-    if (!amount) { toast('Amount is required', 'error'); return; }
-    setBtn('req-btn','req-label',true,'Requesting…');
-    try {
-      const d = await api('/api/request-money', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({amount, from_email:email, from_name:name, description:desc}) });
-      showResult('req-result', `✓ Request created — ID <span class="result-val">#${esc(String(d.request_id))}</span>`, 'success');
-      toast('Money requested!');
-    } catch(e) { showResult('req-result', esc(e.message), 'error'); toast(e.message, 'error'); }
-    finally { setBtn('req-btn','req-label',false,'📥 Request Money'); }
-  }
-
-  // ── bunq.me ───────────────────────────────────────────────────────────
-  async function createBunqme() {
-    const amount = document.getElementById('bme-amount').value;
-    const desc   = document.getElementById('bme-desc').value.trim();
-    if (!amount) { toast('Amount is required', 'error'); return; }
-    setBtn('bme-btn','bme-label',true,'Creating…');
-    try {
-      const d = await api('/api/bunqme', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({amount, description:desc}) });
-      const urlHtml = d.url ? `<br><a href="${esc(d.url)}" target="_blank" style="color:var(--neon)">${esc(d.url)}</a>` : '';
-      showResult('bme-result', `✓ Link created — Tab <span class="result-val">#${esc(String(d.tab_id))}</span>${urlHtml}`, 'success');
-      toast('bunq.me link created!');
-    } catch(e) { showResult('bme-result', esc(e.message), 'error'); toast(e.message, 'error'); }
-    finally { setBtn('bme-btn','bme-label',false,'🔗 Create Payment Link'); }
-  }
-
-  // ── Receipt AI ────────────────────────────────────────────────────────
-  const dropZone     = document.getElementById('drop-zone');
-  const fileInput    = document.getElementById('file-input');
-  const previewWrap  = document.getElementById('preview-wrap');
-  const previewImg   = document.getElementById('preview-img');
-  const analyzeBtn   = document.getElementById('analyze-btn');
-  const analyzeLabel = document.getElementById('analyze-label');
-  const resultsCard  = document.getElementById('results-card');
-  const resultsCont  = document.getElementById('results-content');
-  const scanLine     = document.getElementById('scan-line');
-  let selectedFile = null, lastResult = null;
-
-  dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') fileInput.click(); });
-  document.getElementById('change-btn').addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
-  fileInput.addEventListener('change', () => { if(fileInput.files[0]) loadFile(fileInput.files[0]); });
-
-  function loadFile(f) {
-    selectedFile = f; previewImg.src = URL.createObjectURL(f);
-    previewWrap.style.display='block'; dropZone.style.display='none';
-    analyzeBtn.disabled=false; analyzeLabel.textContent='✦ Analyse with Claude AI';
-    resultsCard.style.display='none'; lastResult=null;
-  }
-
-  analyzeBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
-    analyzeBtn.disabled=true; analyzeLabel.innerHTML='<div class="spinner"></div> Analysing…';
-    resultsCard.style.display='block'; scanLine.style.display='block';
-    resultsCont.innerHTML=`<div><div class="sk-block" style="height:60px;margin-bottom:14px"></div><div class="sk-line" style="width:75%"></div><div class="sk-line" style="width:50%"></div><div class="sk-line" style="width:65%"></div><div class="sk-block" style="height:40px;margin-top:14px"></div></div>`;
-    const form = new FormData(); form.append('receipt', selectedFile);
-    try {
-      const res = await fetch('/api/analyze', { method:'POST', body:form });
-      const data = await res.json();
-      scanLine.style.display='none';
-      if (!res.ok) { resultsCont.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(data.error)}</div>`; toast(data.error,'error'); return; }
-      lastResult=data; renderResults(data);
-    } catch { scanLine.style.display='none'; toast('Network error','error'); }
-    finally { analyzeBtn.disabled=false; analyzeLabel.textContent='✦ Analyse with Claude AI'; }
-  });
-
-  function renderResults(d) {
-    const cur=d.currency||'EUR', amt=Number(d.amount||0).toFixed(2);
-    const itemRows=(d.items||[]).map(i=>`<div class="item-row"><span>${esc(i.name)}</span><span class="item-price">${cur} ${Number(i.price).toFixed(2)}</span></div>`).join('');
-    const itemsBlock=d.items&&d.items.length?`<div class="items-label">Line items</div>${itemRows}<br>`:'';
-    const datePart=d.date?`<div class="meta-chip">📅 ${esc(d.date)}</div>`:'';
-    resultsCont.innerHTML=`
-      <div class="result-merchant">${esc(d.merchant||'Unknown')}</div>
-      <div class="result-amount">${cur} ${amt}</div>
-      <div class="meta-chips"><div class="meta-chip">${esc(d.emoji||'📋')} ${esc(d.category)}</div>${datePart}</div>
-      ${itemsBlock}
-      <div class="form-group"><label>bunq payment note</label>
-        <input id="desc-input" type="text" maxlength="140" value="${esc(d.description||'')}" placeholder="Note for bunq…"/>
+// ═══ ACCOUNTS ════════════════════════════════════════════════════════════════
+async function loadAccounts() {
+  document.getElementById('accounts-area').innerHTML =
+    '<div class="stat"><div class="empty"><div class="empty-icon">⏳</div>Loading accounts…</div></div>';
+  try {
+    const accs = await api('/api/accounts');
+    const s = accs.find(a=>a.type==='savings') || accs[0];
+    const c = accs.find(a=>a.type==='current') || accs[1] || accs[0];
+    document.getElementById('accounts-area').innerHTML = `
+      <div class="acc-card savings">
+        <div class="acc-type s">▲ SAVINGS</div>
+        <div class="acc-name">${esc(s?.description||'Savings')}</div>
+        <div class="acc-balance">€${esc(fmt(s?.balance))}</div>
+        <div class="acc-iban">ID: ${esc(s?.id)} &nbsp;|&nbsp; ${esc(s?.iban||'No IBAN')}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px">${esc(s?.status)}</div>
       </div>
-      <button class="btn btn-primary btn-full" id="log-btn">💳 Log to bunq</button>
-      <div id="log-result" class="result-box"></div>`;
-    document.getElementById('log-btn').addEventListener('click', logToBunq);
+      <div class="acc-card current">
+        <div class="acc-type c">◈ CURRENT</div>
+        <div class="acc-name">${esc(c?.description||'Current')}</div>
+        <div class="acc-balance">€${esc(fmt(c?.balance))}</div>
+        <div class="acc-iban">ID: ${esc(c?.id)} &nbsp;|&nbsp; ${esc(c?.iban||'No IBAN')}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px">${esc(c?.status)}</div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('accounts-area').innerHTML =
+      `<div class="stat"><div style="color:var(--danger);font-size:13px">${esc(e.message)}</div></div>`;
   }
+}
+async function initAccounts() {
+  setBtn('init-btn','init-btn',true,'Provisioning…');
+  document.getElementById('init-btn').innerHTML = '<div class="spin"></div> Provisioning…';
+  try {
+    await api('/api/accounts/init', {method:'POST'});
+    toast('Accounts provisioned!'); loadAccounts(); loadStatus();
+  } catch(e) { toast(e.message,'err'); }
+  finally { document.getElementById('init-btn').innerHTML = '⚡ Provision Accounts'; document.getElementById('init-btn').disabled = false; }
+}
 
-  async function logToBunq() {
-    if (!lastResult) return;
-    const desc = document.getElementById('desc-input')?.value || lastResult.description;
-    const logBtn = document.getElementById('log-btn');
-    logBtn.disabled=true; logBtn.innerHTML='<div class="spinner light"></div> Logging…';
-    try {
-      const d = await api('/api/log-to-bunq', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({...lastResult, description:desc}) });
-      document.getElementById('log-result').style.display='block';
-      document.getElementById('log-result').className='result-box success';
-      document.getElementById('log-result').innerHTML=`✓ Logged — Request <span class="result-val">#${esc(String(d.request_id))}</span>`;
-      logBtn.style.display='none'; toast('Expense logged to bunq!');
-      loadStatus();
-    } catch(e) { const r=document.getElementById('log-result'); r.style.display='block'; r.className='result-box error'; r.textContent=e.message; logBtn.disabled=false; logBtn.textContent='💳 Log to bunq'; toast(e.message,'error'); }
+// ═══ TRANSACTIONS ═════════════════════════════════════════════════════════════
+async function loadTransactions(dashMode=false) {
+  const account = dashMode ? 'current' : (document.getElementById('txn-account')?.value||'current');
+  const count   = dashMode ? 5 : parseInt(document.getElementById('txn-count')?.value||20);
+  const el = document.getElementById(dashMode ? 'dash-txns' : 'txns-body');
+  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>Loading…</div>';
+  try {
+    const txns = await api(`/api/transactions?count=${count}&account=${account}`);
+    if (!txns.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No transactions yet.</div>'; return; }
+    el.innerHTML = `<div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Type</th></tr></thead>
+      <tbody>${txns.map(t=>{
+        const pos = parseFloat(t.amount||0)>0;
+        return `<tr>
+          <td class="td-mono" style="color:var(--text3);font-size:10px">${esc(t.date)}</td>
+          <td class="td-mono ${pos?'pos':'neg'}">${pos?'+':''}${esc(t.amount)} ${esc(t.currency||'EUR')}</td>
+          <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.counterparty)}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)">${esc(t.description)}</td>
+          <td><span class="pill ${pos?'pill-g':'pill-b'}">${esc(t.type||'—')}</span></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
+}
+
+// ═══ PAYMENT ══════════════════════════════════════════════════════════════════
+async function sendPayment() {
+  const amt  = document.getElementById('pay-amt').value;
+  const email= document.getElementById('pay-email').value.trim();
+  const name = document.getElementById('pay-name').value.trim();
+  const desc = document.getElementById('pay-desc').value.trim();
+  const fund = document.getElementById('pay-fund').checked;
+  const acct = document.getElementById('pay-acct').value;
+  if (!amt||!email) { toast('Amount and email required','err'); return; }
+  setBtn('pay-btn','pay-lbl',true,'Processing…');
+  try {
+    const d = await api('/api/payment',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amount:amt,to_email:email,to_name:name,description:desc,fund_first:fund,account_type:acct})});
+    showRes('pay-res',`✓ Payment sent — ID <span class="rval">#${esc(String(d.payment_id))}</span>`,'ok');
+    toast('Payment sent!'); loadStatus();
+  } catch(e) { showRes('pay-res',esc(e.message),'err'); toast(e.message,'err'); }
+  finally { setBtn('pay-btn','pay-lbl',false,'💸 Send Payment'); }
+}
+
+// ═══ REQUEST MONEY ════════════════════════════════════════════════════════════
+async function requestMoney() {
+  const amt  = document.getElementById('req-amt').value;
+  const email= document.getElementById('req-email').value.trim();
+  const name = document.getElementById('req-name').value.trim();
+  const desc = document.getElementById('req-desc').value.trim();
+  const acct = document.getElementById('req-acct').value;
+  if (!amt) { toast('Amount required','err'); return; }
+  setBtn('req-btn','req-lbl',true,'Requesting…');
+  try {
+    const d = await api('/api/request-money',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amount:amt,from_email:email,from_name:name,description:desc,account_type:acct})});
+    showRes('req-res',`✓ Request created — ID <span class="rval">#${esc(String(d.request_id))}</span>`,'ok');
+    toast('Money requested!');
+  } catch(e) { showRes('req-res',esc(e.message),'err'); toast(e.message,'err'); }
+  finally { setBtn('req-btn','req-lbl',false,'📥 Request Money'); }
+}
+
+// ═══ BUNQ.ME ══════════════════════════════════════════════════════════════════
+async function createBunqme() {
+  const amt  = document.getElementById('bme-amt').value;
+  const desc = document.getElementById('bme-desc').value.trim();
+  const acct = document.getElementById('bme-acct').value;
+  if (!amt) { toast('Amount required','err'); return; }
+  setBtn('bme-btn','bme-lbl',true,'Creating…');
+  try {
+    const d = await api('/api/bunqme',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amount:amt,description:desc,account_type:acct})});
+    const urlPart = d.url ? `<br><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--neon)">${esc(d.url)}</a>` : '';
+    showRes('bme-res',`✓ Tab <span class="rval">#${esc(String(d.tab_id))}</span>${urlPart}`,'ok');
+    toast('bunq.me link created!');
+  } catch(e) { showRes('bme-res',esc(e.message),'err'); toast(e.message,'err'); }
+  finally { setBtn('bme-btn','bme-lbl',false,'🔗 Create Payment Link'); }
+}
+
+// ═══ RECEIPT AI ═══════════════════════════════════════════════════════════════
+const dropZone = document.getElementById('drop-zone');
+const fileIn   = document.getElementById('file-input');
+const camIn    = document.getElementById('cam-input');
+const prevWrap = document.getElementById('prev-wrap');
+const prevImg  = document.getElementById('prev-img');
+const analyzeBtn = document.getElementById('analyze-btn');
+const resultsCard = document.getElementById('results-card');
+let selFile = null, lastResult = null;
+
+function loadReceiptFile(f) {
+  selFile = f; prevImg.src = URL.createObjectURL(f);
+  prevWrap.style.display='block'; dropZone.style.display='none';
+  analyzeBtn.disabled=false;
+  document.getElementById('analyze-lbl').textContent='✦ Analyse with Claude AI';
+  resultsCard.style.display='none'; lastResult=null;
+}
+dropZone.addEventListener('click', ()=>fileIn.click());
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('over')});
+dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e=>{e.preventDefault();dropZone.classList.remove('over');if(e.dataTransfer.files[0])loadReceiptFile(e.dataTransfer.files[0])});
+fileIn.addEventListener('change', ()=>{ if(fileIn.files[0]) loadReceiptFile(fileIn.files[0]); });
+camIn.addEventListener('change',  ()=>{ if(camIn.files[0])  loadReceiptFile(camIn.files[0]);  });
+document.getElementById('change-btn').addEventListener('click', ()=>fileIn.click());
+
+analyzeBtn.addEventListener('click', async()=>{
+  if(!selFile) return;
+  analyzeBtn.disabled=true;
+  document.getElementById('analyze-lbl').innerHTML='<div class="spin"></div> Analysing…';
+  resultsCard.style.display='block';
+  document.getElementById('scan-bar').style.display='block';
+  document.getElementById('results-body').innerHTML=`
+    <div><div class="sk" style="height:52px;margin-bottom:12px"></div>
+    <div class="sk" style="height:12px;width:70%;margin-bottom:8px"></div>
+    <div class="sk" style="height:12px;width:50%;margin-bottom:8px"></div>
+    <div class="sk" style="height:12px;width:62%;margin-bottom:16px"></div>
+    <div class="sk" style="height:36px"></div></div>`;
+  const form = new FormData(); form.append('receipt', selFile);
+  try {
+    const r = await fetch('/api/analyze',{method:'POST',body:form});
+    const d = await r.json();
+    document.getElementById('scan-bar').style.display='none';
+    if(!r.ok){document.getElementById('results-body').innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(d.error)}</div>`;toast(d.error,'err');return;}
+    lastResult=d; renderReceipt(d);
+  } catch(e){document.getElementById('scan-bar').style.display='none';toast('Network error','err');}
+  finally{analyzeBtn.disabled=false;document.getElementById('analyze-lbl').textContent='✦ Analyse with Claude AI';}
+});
+
+function renderReceipt(d) {
+  const cur=d.currency||'EUR', amt=fmt(d.amount||0);
+  const items=(d.items||[]).map(i=>`<div class="item-row"><span>${esc(i.name)}</span><span class="item-price">${cur} ${fmt(i.price)}</span></div>`).join('');
+  document.getElementById('results-body').innerHTML=`
+    <div class="r-merchant">${esc(d.merchant||'Unknown')}</div>
+    <div class="r-amount">${cur} ${amt}</div>
+    <div class="meta-chips">
+      <div class="mchip">${esc(d.emoji||'📋')} ${esc(d.category)}</div>
+      ${d.date?`<div class="mchip">📅 ${esc(d.date)}</div>`:''}
+    </div>
+    ${items?`<div class="items-lbl">Line items</div>${items}<br>`:''}
+    <div class="fgroup"><label>Bank note</label>
+      <input id="r-desc" type="text" maxlength="140" value="${esc(d.description||'')}"/>
+    </div>
+    <button class="btn btn-primary btn-full" id="log-btn">💳 Log to bunq</button>
+    <div id="log-res" class="rbox"></div>`;
+  document.getElementById('log-btn').addEventListener('click', logToBunq);
+}
+
+async function logToBunq() {
+  if(!lastResult) return;
+  const desc = document.getElementById('r-desc')?.value || lastResult.description;
+  const acct = document.getElementById('r-account').value;
+  const btn = document.getElementById('log-btn');
+  btn.disabled=true; btn.innerHTML='<div class="spin light"></div> Logging…';
+  try {
+    const d = await api('/api/log-to-bunq',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...lastResult, description:desc, account_type:acct})});
+    const r=document.getElementById('log-res');
+    r.style.display='block'; r.className='rbox ok';
+    r.innerHTML=`✓ Logged — bunq request <span class="rval">#${esc(String(d.request_id))}</span>`;
+    btn.style.display='none'; toast('Expense logged to bunq!');
+    loadStatus(); loadRecentReceipts();
+  } catch(e){
+    const r=document.getElementById('log-res');
+    r.style.display='block'; r.className='rbox err'; r.textContent=e.message;
+    btn.disabled=false; btn.textContent='💳 Log to bunq'; toast(e.message,'err');
   }
+}
 
-  // ── Init ──────────────────────────────────────────────────────────────
-  loadStatus();
-  loadAccounts();
-  loadTransactions(true);
+async function loadRecentReceipts() {
+  try {
+    const recs = await api('/api/receipts?limit=5');
+    const el = document.getElementById('recent-receipts');
+    if(!recs.length){el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div>No receipts yet</div>';return;}
+    const EMOJI={'FOOD_AND_DRINK':'🍽️','SHOPPING':'🛍️','TRANSPORT':'🚗','ENTERTAINMENT':'🎬','HEALTHCARE':'🏥','UTILITIES':'⚡','TRAVEL':'✈️','OTHER':'📋'};
+    el.innerHTML=recs.map(r=>`
+      <div class="rec-card">
+        <div class="rec-emoji">${EMOJI[r.category]||'📋'}</div>
+        <div class="rec-info">
+          <div class="rec-merchant">${esc(r.merchant)}</div>
+          <div class="rec-desc">${esc(r.category)} · ${esc(r.receipt_date||r.created_at?.slice(0,10)||'')}</div>
+        </div>
+        <div class="rec-amt">${esc(r.currency)} ${fmt(r.amount)}</div>
+      </div>`).join('');
+  } catch(e) { console.warn('receipts:', e.message); }
+}
+
+// ═══ X-RAY VISION ════════════════════════════════════════════════════════════
+const xrayDrop = document.getElementById('xray-drop');
+const xrayFile = document.getElementById('xray-file');
+const xrayCam  = document.getElementById('xray-cam');
+const xrayPrevWrap = document.getElementById('xray-prev-wrap');
+const xrayPrev = document.getElementById('xray-prev');
+const xrayBtn  = document.getElementById('xray-btn');
+let xraySelFile = null;
+
+function loadXrayFile(f) {
+  xraySelFile = f; xrayPrev.src = URL.createObjectURL(f);
+  xrayPrevWrap.style.display='block'; xrayDrop.style.display='none';
+  xrayBtn.disabled=false;
+  document.getElementById('xray-lbl').textContent='🔬 Analyse Item';
+}
+xrayDrop.addEventListener('click', ()=>xrayFile.click());
+xrayFile.addEventListener('change', ()=>{ if(xrayFile.files[0]) loadXrayFile(xrayFile.files[0]); });
+xrayCam.addEventListener('change',  ()=>{ if(xrayCam.files[0])  loadXrayFile(xrayCam.files[0]);  });
+xrayDrop.addEventListener('dragover', e=>{e.preventDefault();xrayDrop.classList.add('over')});
+xrayDrop.addEventListener('dragleave', ()=>xrayDrop.classList.remove('over'));
+xrayDrop.addEventListener('drop', e=>{e.preventDefault();xrayDrop.classList.remove('over');if(e.dataTransfer.files[0])loadXrayFile(e.dataTransfer.files[0])});
+
+xrayBtn.addEventListener('click', async()=>{
+  if(!xraySelFile) return;
+  xrayBtn.disabled=true;
+  document.getElementById('xray-lbl').innerHTML='<div class="spin"></div> Identifying…';
+  const form = new FormData(); form.append('image', xraySelFile);
+  try {
+    const r = await fetch('/api/xray',{method:'POST',body:form});
+    const d = await r.json();
+    if(!r.ok){toast(d.error,'err');return;}
+    renderXray(d); toast('Item identified!'); loadXrayHistory();
+  } catch(e){ toast('Network error','err'); }
+  finally { xrayBtn.disabled=false; document.getElementById('xray-lbl').textContent='🔬 Analyse Item'; }
+});
+
+function renderXray(d) {
+  document.getElementById('xray-results-wrap').style.display='block';
+  document.getElementById('xray-item-name').innerHTML=
+    `<span style="margin-right:4px">🔍</span>${esc(d.item_name||'Item')}`;
+  document.getElementById('xray-item-desc').textContent  = d.description||'';
+  document.getElementById('xray-price').textContent      = `€${fmt(d.estimated_price)}`;
+  const conf = d.price_confidence||'medium';
+  document.getElementById('xray-confidence').textContent = `Price confidence: ${conf}`;
+  document.getElementById('xi-hours').textContent  = `${d.hours_of_work}h`;
+  document.getElementById('xi-sp500').textContent  = `€${Number(d.sp500_10yr||0).toLocaleString('en-EU',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+  document.getElementById('xi-pct').textContent    = `${d.monthly_pct}%`;
+  document.getElementById('xray-impacts').innerHTML =
+    (d.impacts||[]).map(m=>`<div class="impact-msg">${esc(m)}</div>`).join('');
+}
+
+async function loadXrayHistory() {
+  try {
+    const scans = await api('/api/xray/history?limit=5');
+    const el = document.getElementById('xray-history-list');
+    if(!scans.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔬</div>No scans yet</div>';return;}
+    el.innerHTML = scans.map(s=>`
+      <div class="rec-card">
+        <div class="rec-emoji">🔬</div>
+        <div class="rec-info">
+          <div class="rec-merchant">${esc(s.item_name)}</div>
+          <div class="rec-desc">${s.hours_of_work}h work · S&P 500 → €${Number(s.sp500_10yr||0).toFixed(0)}</div>
+        </div>
+        <div class="rec-amt">€${fmt(s.estimated_price)}</div>
+      </div>`).join('');
+  } catch(e) { console.warn('xray hist:', e.message); }
+}
+
+// ═══ HISTORY PAGE ════════════════════════════════════════════════════════════
+function switchHistTab(tab) {
+  document.getElementById('htab-receipts').classList.toggle('active', tab==='receipts');
+  document.getElementById('htab-xray').classList.toggle('active', tab==='xray');
+  document.getElementById('hist-receipts').style.display = tab==='receipts'?'block':'none';
+  document.getElementById('hist-xray').style.display     = tab==='xray'?'block':'none';
+}
+async function loadHistReceipts() {
+  const el = document.getElementById('hist-rec-body');
+  el.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading…</div>';
+  try {
+    const recs = await api('/api/receipts?limit=100');
+    if(!recs.length){el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div>No receipts yet</div>';return;}
+    const EMOJI={'FOOD_AND_DRINK':'🍽️','SHOPPING':'🛍️','TRANSPORT':'🚗','ENTERTAINMENT':'🎬','HEALTHCARE':'🏥','UTILITIES':'⚡','TRAVEL':'✈️','OTHER':'📋'};
+    el.innerHTML=`<div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Merchant</th><th>Category</th><th>Amount</th><th>bunq ID</th></tr></thead>
+      <tbody>${recs.map(r=>`<tr>
+        <td class="td-mono" style="font-size:10px;color:var(--text3)">${esc(r.receipt_date||r.created_at?.slice(0,10)||'')}</td>
+        <td style="font-weight:600">${EMOJI[r.category]||'📋'} ${esc(r.merchant)}</td>
+        <td><span class="pill pill-b">${esc(r.category)}</span></td>
+        <td class="td-mono pos">${esc(r.currency)} ${fmt(r.amount)}</td>
+        <td class="td-mono" style="color:var(--text3)">${r.bunq_request_id?`#${esc(r.bunq_request_id)}`:'—'}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
+}
+async function loadHistXray() {
+  const el = document.getElementById('hist-xray-body');
+  el.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading…</div>';
+  try {
+    const scans = await api('/api/xray/history?limit=100');
+    if(!scans.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔬</div>No X-Ray scans yet</div>';return;}
+    el.innerHTML=`<div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Item</th><th>Price</th><th>Hours Work</th><th>S&P 500 10Y</th><th>Salary %</th></tr></thead>
+      <tbody>${scans.map(s=>`<tr>
+        <td class="td-mono" style="font-size:10px;color:var(--text3)">${esc(s.created_at?.slice(0,10)||'')}</td>
+        <td style="font-weight:600">🔬 ${esc(s.item_name)}</td>
+        <td class="td-mono" style="color:var(--purple)">€${fmt(s.estimated_price)}</td>
+        <td class="td-mono" style="color:var(--amber)">${s.hours_of_work}h</td>
+        <td class="td-mono" style="color:var(--neon)">€${Number(s.sp500_10yr||0).toFixed(0)}</td>
+        <td class="td-mono" style="color:var(--pink)">${s.monthly_pct}%</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
+}
+
+// ═══ INIT ═════════════════════════════════════════════════════════════════════
+loadStatus();
+loadTransactions(true);
+loadRecentReceipts();
 </script>
 </body>
 </html>

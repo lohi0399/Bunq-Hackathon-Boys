@@ -1,19 +1,26 @@
 """
 ReceiptAI — bunq Hackathon 7.0
 -------------------------------
-Full banking dashboard with multimodal AI receipt scanning.
+Full banking dashboard with:
+  • Receipt AI    — scan receipts, auto-categorise, log to bunq, stored in DB
+  • X-Ray Vision  — point camera at any item → brutal financial context overlay
+  • Banking       — 2 fixed accounts (Savings + Current), payments, requests, transactions
+  • Database      — SQLite; every scan and action is persisted locally
 
 Routes:
-  GET  /                        — web UI
-  POST /api/analyze             — analyse receipt image with Claude vision
-  POST /api/log-to-bunq         — create a bunq RequestInquiry for the expense
-  GET  /api/accounts            — list monetary accounts
-  POST /api/accounts            — create a new monetary account
-  POST /api/payment             — send a payment
-  POST /api/request-money       — request money (RequestInquiry)
-  POST /api/bunqme              — create a bunq.me payment link
-  GET  /api/transactions        — list recent transactions
-  GET  /api/status              — check auth status / user info
+  GET  /                    web UI
+  GET  /api/status          auth status + balance + DB counts
+  GET  /api/accounts        list 2 fixed accounts (auto-provision if missing)
+  POST /api/accounts/init   force-create Savings + Current accounts
+  POST /api/payment         send a payment
+  POST /api/request-money   create RequestInquiry
+  POST /api/bunqme          create bunq.me payment link
+  GET  /api/transactions    list payments from bunq
+  POST /api/analyze         Claude vision receipt analysis
+  POST /api/log-to-bunq     log expense to bunq + save to DB
+  GET  /api/receipts        list saved receipts from DB
+  POST /api/xray            X-Ray Spending Vision — identify item + financial impact
+  GET  /api/xray/history    list past X-Ray scans
 """
 
 import base64
@@ -24,14 +31,16 @@ import time
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
+import database as db
 from bunq_client import BunqClient
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB max upload
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+BUNQ_CURRENCY = "EUR"
 
 CATEGORIES = [
     "FOOD_AND_DRINK", "SHOPPING", "TRANSPORT", "ENTERTAINMENT",
@@ -43,12 +52,18 @@ CATEGORY_EMOJI = {
     "TRAVEL": "✈️", "OTHER": "📋",
 }
 
-# bunq sandbox only supports EUR
-BUNQ_CURRENCY = "EUR"
+# Financial constants for X-Ray Vision
+HOURLY_WAGE_EUR   = 18.0      # ~Dutch average post-tax
+MONTHLY_SALARY_EUR = 2200.0   # ~Dutch average net/month
+SP500_10Y_MULTIPLIER = 2.594  # 10% p.a. compound for 10 years
 
+# Initialise DB on startup
+db.init_db()
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _get_client() -> BunqClient:
-    """Return an authenticated BunqClient, auto-creating a sandbox user if needed."""
     api_key = os.getenv("BUNQ_API_KEY", "").strip()
     if not api_key:
         api_key = BunqClient.create_sandbox_user()
@@ -58,96 +73,129 @@ def _get_client() -> BunqClient:
 
 
 def _handle_bunq_error(e: Exception):
-    """Turn a bunq HTTPError into a clean JSON response."""
-    msg = str(e)
-    return jsonify({"error": f"bunq API error: {msg}"}), 500
+    return jsonify({"error": f"bunq API error: {e}"}), 500
 
 
-# ── UI ──────────────────────────────────────────────────────────────────────
+def _get_anthropic_client():
+    import anthropic
+    key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set in .env")
+    return anthropic.Anthropic(api_key=key)
+
+
+def _ensure_two_accounts(client: BunqClient) -> dict:
+    """
+    Guarantee exactly a 'Savings' and a 'Current' account exist.
+    Returns {savings: {...}, current: {...}}.
+    """
+    raw = client.get(f"user/{client.user_id}/monetary-account-bank")
+    accounts = {item["MonetaryAccountBank"]["description"].lower(): item["MonetaryAccountBank"]
+                for item in raw if "MonetaryAccountBank" in item
+                and item["MonetaryAccountBank"].get("status") == "ACTIVE"}
+
+    def _create(name):
+        resp = client.post(f"user/{client.user_id}/monetary-account-bank", {
+            "currency": BUNQ_CURRENCY,
+            "description": name,
+        })
+        new_id = resp[0]["Id"]["id"]
+        acc_data = client.get(f"user/{client.user_id}/monetary-account-bank/{new_id}")
+        return acc_data[0]["MonetaryAccountBank"]
+
+    savings = accounts.get("savings") or _create("Savings")
+    current = accounts.get("current") or _create("Current")
+    return {"savings": savings, "current": current}
+
+
+def _format_account(acc: dict) -> dict:
+    ibans = [a["value"] for a in acc.get("alias", []) if a.get("type") == "IBAN"]
+    balance = acc.get("balance", {})
+    return {
+        "id": acc.get("id"),
+        "description": acc.get("description"),
+        "status": acc.get("status"),
+        "balance": balance.get("value", "0.00"),
+        "currency": balance.get("currency", "EUR"),
+        "iban": ibans[0] if ibans else None,
+    }
+
+
+# ── UI ─────────────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-# ── Status / auth ────────────────────────────────────────────────────────────
+# ── Status ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/status")
 def api_status():
     try:
         client = _get_client()
-        accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
-        primary = accounts[0]["MonetaryAccountBank"] if accounts else {}
-        balance = primary.get("balance", {})
+        accs = _ensure_two_accounts(client)
+        savings = _format_account(accs["savings"])
+        current = _format_account(accs["current"])
         return jsonify({
             "user_id": client.user_id,
-            "account_count": len(accounts),
-            "primary_balance": balance.get("value", "0.00"),
-            "primary_currency": balance.get("currency", "EUR"),
+            "savings_balance": savings["balance"],
+            "current_balance": current["balance"],
+            "currency": BUNQ_CURRENCY,
+            "receipt_count": db.count_receipts(),
         })
     except Exception as e:
         return _handle_bunq_error(e)
 
 
-# ── Accounts ─────────────────────────────────────────────────────────────────
+# ── Accounts ───────────────────────────────────────────────────────────────────
 
 @app.route("/api/accounts", methods=["GET"])
 def api_list_accounts():
     try:
         client = _get_client()
-        raw = client.get(f"user/{client.user_id}/monetary-account-bank")
-        accounts = []
-        for item in raw:
-            acc = item.get("MonetaryAccountBank", {})
-            ibans = [a["value"] for a in acc.get("alias", []) if a.get("type") == "IBAN"]
-            balance = acc.get("balance", {})
-            accounts.append({
-                "id": acc.get("id"),
-                "description": acc.get("description"),
-                "status": acc.get("status"),
-                "balance": balance.get("value", "0.00"),
-                "currency": balance.get("currency", "EUR"),
-                "iban": ibans[0] if ibans else None,
-            })
-        return jsonify(accounts)
+        accs = _ensure_two_accounts(client)
+        return jsonify([
+            {**_format_account(accs["savings"]), "type": "savings"},
+            {**_format_account(accs["current"]), "type": "current"},
+        ])
     except Exception as e:
         return _handle_bunq_error(e)
 
 
-@app.route("/api/accounts", methods=["POST"])
-def api_create_account():
-    data = request.get_json(force=True) or {}
-    description = str(data.get("description") or "New Account")[:50]
+@app.route("/api/accounts/init", methods=["POST"])
+def api_init_accounts():
     try:
         client = _get_client()
-        resp = client.post(f"user/{client.user_id}/monetary-account-bank", {
-            "currency": BUNQ_CURRENCY,
-            "description": description,
+        accs = _ensure_two_accounts(client)
+        return jsonify({
+            "success": True,
+            "savings": _format_account(accs["savings"]),
+            "current": _format_account(accs["current"]),
         })
-        new_id = resp[0]["Id"]["id"]
-        return jsonify({"success": True, "account_id": new_id, "description": description})
     except Exception as e:
         return _handle_bunq_error(e)
 
 
-# ── Payments ─────────────────────────────────────────────────────────────────
+# ── Payments ───────────────────────────────────────────────────────────────────
 
 @app.route("/api/payment", methods=["POST"])
 def api_make_payment():
     data = request.get_json(force=True) or {}
-    amount = data.get("amount")
-    description = str(data.get("description") or "Payment")[:140]
+    amount   = data.get("amount")
     to_email = str(data.get("to_email") or "sugardaddy@bunq.com")
-    to_name = str(data.get("to_name") or "")
+    to_name  = str(data.get("to_name") or "")
+    description = str(data.get("description") or "Payment")[:140]
+    account_type = str(data.get("account_type") or "current").lower()
 
     if not amount:
         return jsonify({"error": "amount is required"}), 400
 
     try:
         client = _get_client()
-        account_id = client.get_primary_account_id()
+        accs = _ensure_two_accounts(client)
+        account_id = accs[account_type if account_type in accs else "current"]["id"]
 
-        # Fund account from sugar daddy first if needed
         if data.get("fund_first"):
             client.post(f"user/{client.user_id}/monetary-account/{account_id}/request-inquiry", {
                 "amount_inquired": {"value": "500.00", "currency": BUNQ_CURRENCY},
@@ -162,54 +210,56 @@ def api_make_payment():
             "counterparty_alias": {"type": "EMAIL", "value": to_email, "name": to_name},
             "description": description,
         })
-        payment_id = resp[0]["Id"]["id"]
-        return jsonify({"success": True, "payment_id": payment_id})
+        return jsonify({"success": True, "payment_id": resp[0]["Id"]["id"]})
     except Exception as e:
         return _handle_bunq_error(e)
 
 
-# ── Request money ─────────────────────────────────────────────────────────────
+# ── Request money ──────────────────────────────────────────────────────────────
 
 @app.route("/api/request-money", methods=["POST"])
 def api_request_money():
     data = request.get_json(force=True) or {}
-    amount = data.get("amount")
+    amount      = data.get("amount")
+    from_email  = str(data.get("from_email") or "sugardaddy@bunq.com")
+    from_name   = str(data.get("from_name") or "")
     description = str(data.get("description") or "Payment request")[:140]
-    from_email = str(data.get("from_email") or "sugardaddy@bunq.com")
-    from_name = str(data.get("from_name") or "")
+    account_type = str(data.get("account_type") or "current").lower()
 
     if not amount:
         return jsonify({"error": "amount is required"}), 400
 
     try:
         client = _get_client()
-        account_id = client.get_primary_account_id()
+        accs = _ensure_two_accounts(client)
+        account_id = accs[account_type if account_type in accs else "current"]["id"]
         resp = client.post(f"user/{client.user_id}/monetary-account/{account_id}/request-inquiry", {
             "amount_inquired": {"value": f"{float(amount):.2f}", "currency": BUNQ_CURRENCY},
             "counterparty_alias": {"type": "EMAIL", "value": from_email, "name": from_name},
             "description": description,
             "allow_bunqme": False,
         })
-        request_id = resp[0]["Id"]["id"]
-        return jsonify({"success": True, "request_id": request_id})
+        return jsonify({"success": True, "request_id": resp[0]["Id"]["id"]})
     except Exception as e:
         return _handle_bunq_error(e)
 
 
-# ── bunq.me ───────────────────────────────────────────────────────────────────
+# ── bunq.me ────────────────────────────────────────────────────────────────────
 
 @app.route("/api/bunqme", methods=["POST"])
 def api_create_bunqme():
     data = request.get_json(force=True) or {}
-    amount = data.get("amount")
+    amount      = data.get("amount")
     description = str(data.get("description") or "Payment link")[:140]
+    account_type = str(data.get("account_type") or "current").lower()
 
     if not amount:
         return jsonify({"error": "amount is required"}), 400
 
     try:
         client = _get_client()
-        account_id = client.get_primary_account_id()
+        accs = _ensure_two_accounts(client)
+        account_id = accs[account_type if account_type in accs else "current"]["id"]
         resp = client.post(f"user/{client.user_id}/monetary-account/{account_id}/bunqme-tab", {
             "bunqme_tab_entry": {
                 "amount_inquired": {"value": f"{float(amount):.2f}", "currency": BUNQ_CURRENCY},
@@ -229,14 +279,16 @@ def api_create_bunqme():
         return _handle_bunq_error(e)
 
 
-# ── Transactions ──────────────────────────────────────────────────────────────
+# ── Transactions ───────────────────────────────────────────────────────────────
 
 @app.route("/api/transactions")
 def api_list_transactions():
     count = min(int(request.args.get("count", 20)), 200)
+    account_type = request.args.get("account", "current").lower()
     try:
         client = _get_client()
-        account_id = client.get_primary_account_id()
+        accs = _ensure_two_accounts(client)
+        account_id = accs[account_type if account_type in accs else "current"]["id"]
         raw = client.get(
             f"user/{client.user_id}/monetary-account/{account_id}/payment",
             params={"count": count},
@@ -258,77 +310,65 @@ def api_list_transactions():
         return _handle_bunq_error(e)
 
 
-# ── Receipt AI ────────────────────────────────────────────────────────────────
+# ── Receipt AI ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    """Analyze a receipt image using Claude vision AI."""
     if "receipt" not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
-
     file = request.files["receipt"]
     if not file or file.filename == "":
         return jsonify({"error": "No file selected"}), 400
 
     mime_type = file.content_type or "image/jpeg"
     if mime_type not in ALLOWED_MIME_TYPES:
-        return jsonify({"error": f"Unsupported file type: {mime_type}. Use JPG, PNG, or WebP."}), 400
-
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    if not anthropic_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY not set in .env"}), 500
+        return jsonify({"error": f"Unsupported type: {mime_type}"}), 400
 
     import anthropic
 
     image_data = base64.standard_b64encode(file.read()).decode("utf-8")
     prompt = (
-        "Analyze this receipt image carefully and return ONLY a JSON object with these exact fields:\n"
-        '- "merchant": string — store or restaurant name\n'
-        '- "amount": number — total amount as a float (e.g. 12.50)\n'
-        '- "currency": string — 3-letter ISO code, default "EUR"\n'
-        f'- "category": string — must be one of exactly: {CATEGORIES}\n'
-        '- "date": string or null — format YYYY-MM-DD, or null if not visible\n'
-        '- "items": array — up to 5 objects with {"name": string, "price": float}\n'
-        '- "description": string — short bank transaction note, max 60 characters\n'
-        "\nReturn ONLY valid JSON. No markdown fences, no explanation, no extra text."
+        "Analyze this receipt image and return ONLY a JSON object with:\n"
+        '- "merchant": string\n'
+        '- "amount": number (float)\n'
+        '- "currency": string (3-letter ISO, default EUR)\n'
+        f'- "category": one of {CATEGORIES}\n'
+        '- "date": YYYY-MM-DD or null\n'
+        '- "items": array of {"name":string,"price":float} (up to 5)\n'
+        '- "description": string, max 60 chars, suitable as a bank note\n'
+        "Return ONLY valid JSON, no markdown fences."
     )
 
-    client = anthropic.Anthropic(api_key=anthropic_key)
     try:
-        message = client.messages.create(
+        ai = _get_anthropic_client()
+        message = ai.messages.create(
             model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5"),
             max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_data}},
-                    {"type": "text", "text": prompt},
-                ],
-            }],
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_data}},
+                {"type": "text", "text": prompt},
+            ]}],
         )
     except anthropic.AuthenticationError:
-        return jsonify({"error": "Invalid ANTHROPIC_API_KEY — check your .env file."}), 500
+        return jsonify({"error": "Invalid ANTHROPIC_API_KEY"}), 500
     except anthropic.BadRequestError as e:
         msg = str(e)
-        if "credit balance" in msg.lower():
-            return jsonify({"error": "Anthropic account has no credits. Go to platform.anthropic.com → Plans & Billing."}), 402
-        return jsonify({"error": f"Anthropic API error: {msg}"}), 500
-    except anthropic.APIError as e:
-        return jsonify({"error": f"Anthropic API error: {e}"}), 500
+        if "credit" in msg.lower():
+            return jsonify({"error": "Anthropic account has no credits"}), 402
+        return jsonify({"error": f"Anthropic error: {msg}"}), 500
 
     raw = message.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
-        start, end = raw.find("{"), raw.rfind("}") + 1
-        if start == -1 or end == 0:
-            return jsonify({"error": "AI returned an unexpected response. Please try again."}), 500
-        result = json.loads(raw[start:end])
+        s, e2 = raw.find("{"), raw.rfind("}") + 1
+        if s == -1 or e2 == 0:
+            return jsonify({"error": "AI returned unexpected response"}), 500
+        result = json.loads(raw[s:e2])
 
-    result["amount"] = float(result.get("amount") or 0)
+    result["amount"]   = float(result.get("amount") or 0)
     result["currency"] = str(result.get("currency") or "EUR").upper()
     if result.get("category") not in CATEGORIES:
         result["category"] = "OTHER"
@@ -339,27 +379,25 @@ def analyze():
 
 @app.route("/api/log-to-bunq", methods=["POST"])
 def log_to_bunq():
-    """Create a bunq RequestInquiry to log the scanned expense."""
     data = request.get_json(force=True)
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    amount_raw = float(data.get("amount") or 1.0)
-    currency = str(data.get("currency") or "EUR").upper()
-    merchant = data.get("merchant") or "Receipt"
-    category = data.get("category") or "OTHER"
+    amount_raw  = float(data.get("amount") or 1.0)
+    currency    = str(data.get("currency") or "EUR").upper()
+    merchant    = data.get("merchant") or "Receipt"
+    category    = data.get("category") or "OTHER"
     description = data.get("description") or f"{merchant} [{category}]"
     description = description[:140]
+    account_type = str(data.get("account_type") or "current").lower()
 
-    # bunq sandbox only supports EUR — preserve original currency in the note
     if currency != BUNQ_CURRENCY:
         description = f"[orig: {currency} {amount_raw:.2f}] {description}"[:140]
 
     try:
         client = _get_client()
-        accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
-        account_id = accounts[0]["MonetaryAccountBank"]["id"]
-
+        accs = _ensure_two_accounts(client)
+        account_id = accs[account_type if account_type in accs else "current"]["id"]
         resp = client.post(
             f"user/{client.user_id}/monetary-account/{account_id}/request-inquiry",
             {
@@ -369,13 +407,154 @@ def log_to_bunq():
                 "allow_bunqme": False,
             },
         )
-        request_id = resp[0].get("Id", {}).get("id", "?")
-        return jsonify({"success": True, "request_id": request_id})
+        request_id = str(resp[0].get("Id", {}).get("id", "?"))
+
+        # Persist to local DB
+        import json as _json
+        receipt_id = db.save_receipt(
+            merchant=merchant,
+            amount=amount_raw,
+            currency=currency,
+            category=category,
+            receipt_date=data.get("date"),
+            description=description,
+            bunq_request_id=request_id,
+            items_json=_json.dumps(data.get("items") or []),
+        )
+        return jsonify({"success": True, "request_id": request_id, "receipt_db_id": receipt_id})
     except Exception as e:
         return _handle_bunq_error(e)
 
 
-# Legacy route aliases so old frontend paths still work
+@app.route("/api/receipts")
+def api_list_receipts():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    receipts = db.list_receipts(limit=limit)
+    # parse items_json back to list
+    for r in receipts:
+        try:
+            r["items"] = json.loads(r.get("items_json") or "[]")
+        except Exception:
+            r["items"] = []
+        r.pop("items_json", None)
+    return jsonify(receipts)
+
+
+# ── X-Ray Spending Vision ──────────────────────────────────────────────────────
+
+@app.route("/api/xray", methods=["POST"])
+def xray_vision():
+    """
+    Identify an item in the photo and return brutal financial context:
+      - estimated price
+      - hours of work to afford it
+      - S&P 500 value in 10 years if invested instead
+      - % of monthly salary
+    """
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded (field: 'image')"}), 400
+    file = request.files["image"]
+    mime_type = file.content_type or "image/jpeg"
+    if mime_type not in ALLOWED_MIME_TYPES:
+        return jsonify({"error": f"Unsupported type: {mime_type}"}), 400
+
+    import anthropic
+
+    image_data = base64.standard_b64encode(file.read()).decode("utf-8")
+
+    prompt = (
+        "You are a financial reality-check assistant. Look at this image.\n\n"
+        "1. Identify the main physical product or item visible.\n"
+        "2. Estimate its typical retail price in EUR (be specific, realistic).\n\n"
+        "Return ONLY a JSON object with these fields:\n"
+        '  "item_name"        : string — short product name (e.g. "Nike Air Max 270")\n'
+        '  "estimated_price"  : number — price in EUR as a float\n'
+        '  "currency"         : "EUR"\n'
+        '  "price_confidence" : "low"|"medium"|"high"\n'
+        '  "description"      : string — 1-2 sentence product description\n'
+        "Return ONLY valid JSON, no markdown fences, no extra text."
+    )
+
+    try:
+        ai = _get_anthropic_client()
+        message = ai.messages.create(
+            model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5"),
+            max_tokens=512,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_data}},
+                {"type": "text", "text": prompt},
+            ]}],
+        )
+    except anthropic.AuthenticationError:
+        return jsonify({"error": "Invalid ANTHROPIC_API_KEY"}), 500
+    except anthropic.BadRequestError as e:
+        msg = str(e)
+        if "credit" in msg.lower():
+            return jsonify({"error": "Anthropic account has no credits"}), 402
+        return jsonify({"error": f"Anthropic error: {msg}"}), 500
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    try:
+        item_data = json.loads(raw)
+    except json.JSONDecodeError:
+        s, e2 = raw.find("{"), raw.rfind("}") + 1
+        if s == -1 or e2 == 0:
+            return jsonify({"error": "AI returned unexpected response"}), 500
+        item_data = json.loads(raw[s:e2])
+
+    price = float(item_data.get("estimated_price") or 0)
+    hours_of_work = round(price / HOURLY_WAGE_EUR, 1)
+    sp500_future  = round(price * SP500_10Y_MULTIPLIER, 2)
+    monthly_pct   = round((price / MONTHLY_SALARY_EUR) * 100, 1)
+
+    # Build impact messages
+    impacts = []
+    if hours_of_work >= 1:
+        h = int(hours_of_work)
+        m = int((hours_of_work - h) * 60)
+        time_str = f"{h}h {m}m" if m else f"{h}h"
+        impacts.append(f"You'd work {time_str} to afford this")
+    impacts.append(f"Invested in S&P 500 today → €{sp500_future:,.0f} in 10 years")
+    if monthly_pct >= 100:
+        impacts.append(f"That's {monthly_pct:.0f}% of your monthly salary")
+    elif monthly_pct >= 10:
+        impacts.append(f"That's {monthly_pct:.1f}% of your monthly salary")
+    else:
+        impacts.append(f"Just {monthly_pct:.1f}% of your monthly salary — barely noticeable")
+
+    result = {
+        **item_data,
+        "estimated_price": price,
+        "hours_of_work": hours_of_work,
+        "sp500_10yr": sp500_future,
+        "monthly_pct": monthly_pct,
+        "impacts": impacts,
+    }
+
+    # Persist to DB
+    db.save_xray(
+        item_name=item_data.get("item_name", "Unknown"),
+        estimated_price=price,
+        currency="EUR",
+        hours_of_work=hours_of_work,
+        sp500_10yr=sp500_future,
+        monthly_pct=monthly_pct,
+        ai_description=item_data.get("description", ""),
+    )
+
+    return jsonify(result)
+
+
+@app.route("/api/xray/history")
+def xray_history():
+    limit = min(int(request.args.get("limit", 20)), 100)
+    return jsonify(db.list_xray_scans(limit=limit))
+
+
+# ── Legacy aliases ─────────────────────────────────────────────────────────────
+
 @app.route("/analyze", methods=["POST"])
 def analyze_legacy():
     return analyze()
@@ -387,6 +566,5 @@ def log_to_bunq_legacy():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"\n  ReceiptAI running → http://localhost:{port}\n")
+    print(f"\n  ReceiptAI → http://localhost:{port}\n")
     app.run(debug=True, port=port)
-
