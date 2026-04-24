@@ -113,6 +113,23 @@ Go to **[http://localhost:5000](http://localhost:5000)**
 
 ---
 
+## Where to see logged expenses in bunq
+
+After clicking **Log to bunq**, the expense is created as a payment request in your sandbox account. You can view it in two ways:
+
+**Option 1 — bunq web app**
+1. Go to [web.bunq.com](https://web.bunq.com)
+2. Log in with your sandbox credentials (the email bunq sent when your sandbox account was created)
+3. Open your account → navigate to **Requests** or the transaction feed
+
+**Option 2 — Terminal**
+```bash
+python 04_request_money.py
+```
+This lists all pending payment requests for your account.
+
+---
+
 ## Troubleshooting
 
 **"Anthropic account has no credits"**
@@ -123,6 +140,9 @@ Go to **[http://localhost:5000](http://localhost:5000)**
 
 **Port 5000 already in use**
 → Set a different port: `PORT=8080 python app.py`
+
+**"Log to bunq" shows an error**
+→ Your sandbox session may have expired. Delete `bunq_context.json` and try again — it will re-authenticate automatically.
 
 ---
 
