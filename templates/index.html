@@ -1,360 +1,595 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>ReceiptAI — bunq Hackathon 7.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --neon:#00ffb3; --neon-dim:#00ffb360; --neon-glow:0 0 24px #00ffb355;
-      --blue:#4f8cff; --purple:#a855f7;
-      --bg:#080c14; --surface:#0e1421; --surface2:#141b2d;
-      --border:#1e2d45; --border-hi:#2a4060;
-      --text:#e2eaf6; --muted:#5a7a9a;
-      --danger:#ff4d6d; --radius:18px;
-      --font:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
-    }
+    :root{--neon:#00ffb3;--neon-dim:#00ffb360;--neon-glow:0 0 24px #00ffb355;--blue:#4f8cff;--purple:#a855f7;--bg:#080c14;--surface:#0e1421;--surface2:#141b2d;--border:#1e2d45;--border-hi:#2a4060;--text:#e2eaf6;--muted:#5a7a9a;--danger:#ff4d6d;--warn:#ffb800;--radius:16px;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html{scroll-behavior:smooth}
     body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,179,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,179,.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
-    body::after{content:'';position:fixed;top:-40%;left:-20%;width:70%;height:70%;background:radial-gradient(ellipse,rgba(79,140,255,.07) 0%,transparent 70%);pointer-events:none;z-index:0}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,179,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,179,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+    body::after{content:'';position:fixed;top:-40%;left:-20%;width:70%;height:70%;background:radial-gradient(ellipse,rgba(79,140,255,.06) 0%,transparent 70%);pointer-events:none;z-index:0}
 
     /* Header */
-    header{position:relative;z-index:10;padding:0 40px;height:68px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(8,12,20,.7)}
-    .logo-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--neon),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#000;box-shadow:var(--neon-glow);flex-shrink:0}
-    .logo-text{font-size:17px;font-weight:800;letter-spacing:-.3px;background:linear-gradient(90deg,#fff 0%,var(--neon) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .header-tag{margin-left:auto;display:flex;align-items:center;gap:8px}
-    .dot-live{width:7px;height:7px;border-radius:50%;background:var(--neon);box-shadow:0 0 8px var(--neon);animation:pulse-dot 2s ease infinite}
-    @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.35}}
-    .tag-text{font-size:12px;font-weight:600;color:var(--neon);letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono)}
+    header{position:relative;z-index:10;padding:0 32px;height:64px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(8,12,20,.8)}
+    .logo-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--neon),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#000;box-shadow:var(--neon-glow);flex-shrink:0}
+    .logo-text{font-size:16px;font-weight:800;background:linear-gradient(90deg,#fff,var(--neon));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .header-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+    .dot-live{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 8px var(--neon);animation:pdot 2s ease infinite}
+    @keyframes pdot{0%,100%{opacity:1}50%{opacity:.3}}
+    .status-badge{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--neon);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+    #status-bal{font-family:var(--mono);font-size:12px;color:var(--muted)}
 
     /* Layout */
-    main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:48px 24px 80px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
-    @media(max-width:800px){main{grid-template-columns:1fr;padding:28px 16px 60px}}
+    .shell{position:relative;z-index:1;display:flex;height:calc(100vh - 64px)}
 
-    /* Hero */
-    .hero{grid-column:1/-1;text-align:center;padding:12px 0 36px}
-    .hero-eyebrow{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--neon);margin-bottom:14px}
-    .hero h1{font-size:clamp(30px,5vw,52px);font-weight:900;letter-spacing:-2px;line-height:1.1;background:linear-gradient(135deg,#fff 0%,#a0c4ff 50%,var(--neon) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px}
-    .hero p{font-size:16px;color:var(--muted);max-width:480px;margin:0 auto;line-height:1.7}
+    /* Sidebar nav */
+    nav{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:4px}
+    .nav-section{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px;margin-top:8px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:var(--font)}
+    .nav-item .nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+    .nav-item:hover{background:var(--surface2);color:var(--text)}
+    .nav-item.active{background:rgba(0,255,179,.08);color:var(--neon);border:1px solid rgba(0,255,179,.15)}
 
-    /* Card */
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;position:relative;overflow:hidden;transition:border-color .3s}
-    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,179,.3),transparent)}
-    .card:hover{border-color:var(--border-hi)}
-    .card-label{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:22px;display:flex;align-items:center;gap:8px}
-    .card-label::before{content:'';width:3px;height:12px;border-radius:2px;background:var(--neon);box-shadow:var(--neon-glow)}
+    /* Content */
+    .content{flex:1;overflow-y:auto;padding:28px 32px}
+    .page{display:none}
+    .page.active{display:block}
+    .page-title{font-size:22px;font-weight:800;margin-bottom:4px;letter-spacing:-.5px}
+    .page-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
 
-    /* Drop zone */
-    #drop-zone{border:1.5px dashed var(--border-hi);border-radius:14px;padding:44px 20px;text-align:center;cursor:pointer;transition:all .25s;background:rgba(0,255,179,.015);position:relative;overflow:hidden}
-    #drop-zone::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,255,179,.04),transparent 70%);opacity:0;transition:opacity .3s}
-    #drop-zone:hover::before,#drop-zone.drag-over::before{opacity:1}
-    #drop-zone:hover,#drop-zone.drag-over{border-color:var(--neon);box-shadow:0 0 0 1px var(--neon-dim),inset 0 0 40px rgba(0,255,179,.03)}
-    .upload-icon-wrap{width:64px;height:64px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:16px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:26px;transition:transform .2s,box-shadow .2s}
-    #drop-zone:hover .upload-icon-wrap{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,255,179,.12)}
-    #drop-zone p{font-size:14px;color:var(--muted);line-height:1.7}
-    #drop-zone strong{color:var(--text);font-weight:600}
-    .file-types{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px}
-    .file-type-pill{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;letter-spacing:.5px}
-    #file-input{display:none}
+    /* Cards */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;position:relative;overflow:hidden;margin-bottom:16px}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,179,.2),transparent)}
+    .card-title{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:6px}
+    .card-title::before{content:'';width:2px;height:10px;border-radius:2px;background:var(--neon)}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(max-width:900px){.grid-2{grid-template-columns:1fr}}
 
-    /* Preview */
-    #preview-wrap{display:none;margin-top:18px;position:relative}
-    #preview-img{width:100%;max-height:260px;object-fit:contain;border-radius:12px;border:1px solid var(--border-hi);background:var(--surface2)}
-    .preview-badge{position:absolute;top:10px;right:10px;background:rgba(8,12,20,.85);border:1px solid var(--border-hi);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--neon);font-family:var(--mono);backdrop-filter:blur(8px)}
-    .change-btn{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:10px;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:color .2s}
-    .change-btn:hover{color:var(--neon)}
+    /* Stat cards */
+    .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+    @media(max-width:800px){.stat-grid{grid-template-columns:1fr}}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+    .stat-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+    .stat-value{font-size:26px;font-weight:900;font-family:var(--mono);background:linear-gradient(90deg,var(--neon),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
 
-    /* Primary button */
-    .btn-primary{margin-top:22px;width:100%;padding:15px;background:linear-gradient(135deg,#00d492,#00a8ff);color:#000;border:none;border-radius:12px;font-size:14px;font-weight:800;letter-spacing:.3px;cursor:pointer;transition:opacity .2s,transform .15s,box-shadow .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 24px rgba(0,212,146,.25);font-family:var(--font)}
-    .btn-primary:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 8px 32px rgba(0,212,146,.35)}
-    .btn-primary:active{transform:scale(.99)}
-    .btn-primary:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
+    /* Form elements */
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    @media(max-width:700px){.form-row{grid-template-columns:1fr}}
+    .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+    label{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+    input[type=text],input[type=number],input[type=email],select,textarea{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:9px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .2s,box-shadow .2s}
+    input:focus,select:focus,textarea:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(0,255,179,.07)}
+    select option{background:var(--surface2)}
+    textarea{resize:vertical;min-height:80px}
 
-    /* Spinner */
-    .spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:spin .65s linear infinite;flex-shrink:0}
-    .spinner.light{border-color:rgba(255,255,255,.2);border-top-color:#fff}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;border:none;font-family:var(--font)}
+    .btn-primary{background:linear-gradient(135deg,#00d492,#00a8ff);color:#000;box-shadow:0 3px 16px rgba(0,212,146,.2)}
+    .btn-primary:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,212,146,.3)}
+    .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border-hi)}
+    .btn-secondary:hover{border-color:var(--neon);color:var(--neon)}
+    .btn-danger{background:rgba(255,77,109,.1);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
+    .btn-danger:hover{background:rgba(255,77,109,.2)}
+    .btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+    .btn-full{width:100%}
+    .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .65s linear infinite}
+    .spinner.light{border-color:rgba(255,255,255,.2);border-top-color:var(--text)}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* Results card */
-    #results-card{display:none}
-    .scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);animation:scan 2s linear infinite;display:none}
-    @keyframes scan{from{transform:translateY(0);opacity:1}to{transform:translateY(400px);opacity:0}}
+    /* Table */
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--border)}
+    td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--text)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.015)}
+    .td-mono{font-family:var(--mono);font-size:12px}
+    .td-pos{color:var(--neon)}
+    .td-neg{color:var(--danger)}
+    .td-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600}
+    .pill-green{background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.2)}
+    .pill-blue{background:rgba(79,140,255,.1);color:var(--blue);border:1px solid rgba(79,140,255,.2)}
+    .pill-gray{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
 
-    /* Result content */
-    .result-merchant{font-size:26px;font-weight:900;letter-spacing:-.8px;margin-bottom:4px;line-height:1.2}
-    .result-amount{font-size:42px;font-weight:900;letter-spacing:-2px;font-family:var(--mono);background:linear-gradient(90deg,var(--neon),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:6px 0 12px}
-    .result-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
-    .meta-chip{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--text)}
-    .items-header{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-    .items-list{margin-bottom:20px}
-    .item-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+    /* Alert / result boxes */
+    .result-box{padding:14px 16px;border-radius:10px;font-size:13px;margin-top:12px;display:none}
+    .result-box.success{background:rgba(0,255,179,.07);border:1px solid rgba(0,255,179,.2);color:var(--neon)}
+    .result-box.error{background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.2);color:var(--danger)}
+    .result-box.info{background:rgba(79,140,255,.07);border:1px solid rgba(79,140,255,.2);color:var(--blue)}
+    .result-val{font-family:var(--mono);font-weight:600;word-break:break-all}
+
+    /* Receipt AI specific */
+    #drop-zone{border:1.5px dashed var(--border-hi);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(0,255,179,.01);position:relative;overflow:hidden}
+    #drop-zone::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,255,179,.04),transparent 70%);opacity:0;transition:opacity .3s}
+    #drop-zone:hover::before,#drop-zone.drag-over::before{opacity:1}
+    #drop-zone:hover,#drop-zone.drag-over{border-color:var(--neon);box-shadow:0 0 0 1px var(--neon-dim)}
+    .upload-icon-wrap{width:56px;height:56px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:14px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:22px;transition:transform .2s}
+    #drop-zone:hover .upload-icon-wrap{transform:translateY(-3px)}
+    #drop-zone p{font-size:13px;color:var(--muted);line-height:1.7}
+    #drop-zone strong{color:var(--text)}
+    .file-pills{display:flex;justify-content:center;gap:6px;margin-top:10px}
+    .file-pill{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 8px}
+    #file-input{display:none}
+    #preview-wrap{display:none;margin-top:14px;position:relative}
+    #preview-img{width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid var(--border-hi);background:var(--surface2)}
+    .preview-badge{position:absolute;top:8px;right:8px;background:rgba(8,12,20,.9);border:1px solid var(--border-hi);border-radius:7px;padding:4px 8px;font-size:10px;font-weight:600;color:var(--neon);font-family:var(--mono);backdrop-filter:blur(8px)}
+    .change-link{font-size:11px;color:var(--muted);cursor:pointer;margin-top:8px;display:inline-block;transition:color .15s}
+    .change-link:hover{color:var(--neon)}
+
+    .result-merchant{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:2px}
+    .result-amount{font-size:34px;font-weight:900;letter-spacing:-1.5px;font-family:var(--mono);background:linear-gradient(90deg,var(--neon),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:4px 0 10px}
+    .meta-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+    .meta-chip{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:600}
+    .items-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+    .item-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
     .item-row:last-child{border-bottom:none}
     .item-price{font-family:var(--mono);font-weight:600;color:var(--neon)}
-    .input-label{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-    #desc-input{width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:10px;font-size:13px;color:var(--text);font-family:var(--font);transition:border-color .2s,box-shadow .2s;outline:none}
-    #desc-input:focus{border-color:var(--neon);box-shadow:0 0 0 3px rgba(0,255,179,.08)}
-
-    /* Log button */
-    .btn-log{margin-top:16px;width:100%;padding:15px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:12px;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;font-family:var(--font);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden}
-    .btn-log::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,255,179,.06),rgba(79,140,255,.06));opacity:0;transition:opacity .2s}
-    .btn-log:hover{border-color:var(--neon);color:var(--neon)}
-    .btn-log:hover::before{opacity:1}
-    .btn-log:disabled{opacity:.3;cursor:not-allowed}
-
-    /* Success */
-    #success-overlay{display:none;text-align:center;padding:24px 0 8px}
-    .success-icon{width:64px;height:64px;background:linear-gradient(135deg,rgba(0,255,179,.15),rgba(0,255,179,.05));border:1px solid rgba(0,255,179,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;box-shadow:0 0 32px rgba(0,255,179,.15)}
-    #success-overlay h3{font-size:18px;font-weight:800;margin-bottom:6px;background:linear-gradient(90deg,#fff,var(--neon));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    #success-overlay p{font-size:13px;color:var(--muted);margin-bottom:14px}
-    .req-badge{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--neon);background:rgba(0,255,179,.07);border:1px solid rgba(0,255,179,.25);border-radius:8px;padding:6px 16px;margin-bottom:20px}
-    .btn-reset{padding:10px 22px;background:none;border:1px solid var(--border-hi);border-radius:10px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:var(--font);transition:all .2s}
-    .btn-reset:hover{border-color:var(--neon);color:var(--neon)}
-
-    /* How it works */
-    .how-card{grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;position:relative;overflow:hidden}
-    .how-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(79,140,255,.4),var(--neon-dim),transparent)}
-    .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:8px}
-    @media(max-width:600px){.how-steps{grid-template-columns:1fr}}
-    .how-step{padding:20px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;transition:border-color .2s,transform .2s}
-    .how-step:hover{border-color:var(--border-hi);transform:translateY(-2px)}
-    .step-number{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--neon);letter-spacing:1px;margin-bottom:10px}
-    .step-icon{font-size:28px;margin-bottom:10px}
-    .how-step h4{font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text)}
-    .how-step p{font-size:13px;color:var(--muted);line-height:1.6}
-
-    /* Empty state */
-    .empty-state{text-align:center;padding:48px 16px;color:var(--muted)}
-    .empty-icon{font-size:40px;margin-bottom:14px;opacity:.5}
-    .empty-state p{font-size:14px;line-height:1.7}
-
-    /* Skeleton */
-    .sk-line{height:14px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;border-radius:6px;animation:shimmer 1.4s ease infinite;margin-bottom:10px}
-    .sk-block{border-radius:12px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.4s ease infinite;margin-bottom:12px}
+    .success-icon{width:52px;height:52px;background:rgba(0,255,179,.1);border:1px solid rgba(0,255,179,.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px;box-shadow:0 0 24px rgba(0,255,179,.12)}
+    .scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);animation:scan 1.8s linear infinite;display:none}
+    @keyframes scan{from{transform:translateY(0);opacity:1}to{transform:translateY(300px);opacity:0}}
+    .sk-line{height:12px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;border-radius:5px;animation:shimmer 1.3s ease infinite;margin-bottom:8px}
+    .sk-block{border-radius:10px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.3s ease infinite;margin-bottom:10px}
     @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
 
-    /* Toast */
-    #toast{display:none;position:fixed;bottom:32px;left:50%;transform:translateX(-50%);padding:13px 24px;border-radius:12px;font-size:13px;font-weight:600;z-index:999;animation:toastIn .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;font-family:var(--font)}
-    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px) scale(.95)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
-    #toast.success{background:linear-gradient(135deg,#00d492,#00a8ff);color:#000;box-shadow:0 8px 32px rgba(0,212,146,.35)}
-    #toast.error{background:linear-gradient(135deg,#ff4d6d,#c0392b);color:#fff;box-shadow:0 8px 32px rgba(255,77,109,.3)}
+    /* Account cards */
+    .account-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px}
+    .account-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
+    .account-card:hover{border-color:var(--border-hi)}
+    .account-card-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+    .account-card-name{font-size:14px;font-weight:700;margin-bottom:4px}
+    .account-card-balance{font-family:var(--mono);font-size:22px;font-weight:900;color:var(--neon)}
+    .account-card-iban{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.5px}
 
-    /* Particles */
-    .particle{position:fixed;border-radius:50%;background:var(--neon);opacity:0;pointer-events:none;animation:pfloat linear infinite}
-    @keyframes pfloat{0%{transform:translateY(100vh) translateX(0);opacity:0}10%{opacity:.4}90%{opacity:.15}100%{transform:translateY(-10vh) translateX(30px);opacity:0}}
+    /* Toast */
+    #toast{display:none;position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;animation:toastIn .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;font-family:var(--font)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(12px) scale(.95)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+    #toast.success{background:linear-gradient(135deg,#00d492,#00a8ff);color:#000;box-shadow:0 6px 24px rgba(0,212,146,.3)}
+    #toast.error{background:linear-gradient(135deg,#ff4d6d,#c0392b);color:#fff;box-shadow:0 6px 24px rgba(255,77,109,.25)}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:3px}
   </style>
 </head>
 <body>
-  <div class="particle" style="width:3px;height:3px;left:10%;animation-duration:12s;animation-delay:0s"></div>
-  <div class="particle" style="width:2px;height:2px;left:25%;animation-duration:18s;animation-delay:3s"></div>
-  <div class="particle" style="width:2px;height:2px;left:50%;animation-duration:15s;animation-delay:7s;background:#4f8cff"></div>
-  <div class="particle" style="width:3px;height:3px;left:75%;animation-duration:20s;animation-delay:1s"></div>
-  <div class="particle" style="width:2px;height:2px;left:88%;animation-duration:14s;animation-delay:5s;background:#a855f7"></div>
+<header>
+  <div class="logo-mark">b</div>
+  <span class="logo-text">ReceiptAI</span>
+  <div class="header-right">
+    <div class="status-badge"><div class="dot-live"></div>LIVE</div>
+    <span id="status-bal">Loading…</span>
+  </div>
+</header>
 
-  <header>
-    <div class="logo-mark">b</div>
-    <span class="logo-text">ReceiptAI</span>
-    <div class="header-tag">
-      <div class="dot-live"></div>
-      <span class="tag-text">Hackathon 7.0</span>
-    </div>
-  </header>
+<div class="shell">
+  <nav>
+    <div class="nav-section">Overview</div>
+    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">⬡</span> Dashboard
+    </button>
 
-  <main>
-    <div class="hero">
-      <div class="hero-eyebrow">Multimodal AI · Banking</div>
-      <h1>Scan. Understand.<br>Bank smarter.</h1>
-      <p>Drop a receipt photo. Claude AI reads it instantly and logs the expense directly to your bunq account.</p>
-    </div>
+    <div class="nav-section">AI Features</div>
+    <button class="nav-item" data-page="receipt-ai" onclick="showPage('receipt-ai',this)">
+      <span class="nav-icon">🧾</span> Receipt AI
+    </button>
 
-    <div class="card">
-      <div class="card-label">Input</div>
-      <div id="drop-zone" role="button" tabindex="0" aria-label="Upload receipt image">
-        <div class="upload-icon-wrap">🧾</div>
-        <p><strong>Drag &amp; drop</strong> your receipt here<br>or <strong>click to browse files</strong></p>
-        <div class="file-types">
-          <span class="file-type-pill">JPG</span>
-          <span class="file-type-pill">PNG</span>
-          <span class="file-type-pill">WEBP</span>
-          <span class="file-type-pill">MAX 10MB</span>
+    <div class="nav-section">Banking</div>
+    <button class="nav-item" data-page="accounts" onclick="showPage('accounts',this)">
+      <span class="nav-icon">🏦</span> Accounts
+    </button>
+    <button class="nav-item" data-page="transactions" onclick="showPage('transactions',this)">
+      <span class="nav-icon">📋</span> Transactions
+    </button>
+    <button class="nav-item" data-page="payment" onclick="showPage('payment',this)">
+      <span class="nav-icon">💸</span> Send Payment
+    </button>
+    <button class="nav-item" data-page="request" onclick="showPage('request',this)">
+      <span class="nav-icon">📥</span> Request Money
+    </button>
+    <button class="nav-item" data-page="bunqme" onclick="showPage('bunqme',this)">
+      <span class="nav-icon">🔗</span> bunq.me Link
+    </button>
+  </nav>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Your bunq sandbox overview</div>
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="stat-label">User ID</div><div class="stat-value" id="stat-uid">—</div></div>
+        <div class="stat-card"><div class="stat-label">Primary Balance</div><div class="stat-value" id="stat-bal">—</div><div class="stat-sub" id="stat-cur"></div></div>
+        <div class="stat-card"><div class="stat-label">Accounts</div><div class="stat-value" id="stat-acc">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <button class="btn btn-primary" onclick="showPage('receipt-ai',document.querySelector('[data-page=receipt-ai]'))">🧾 Scan Receipt</button>
+          <button class="btn btn-secondary" onclick="showPage('payment',document.querySelector('[data-page=payment]'))">💸 Send Payment</button>
+          <button class="btn btn-secondary" onclick="showPage('request',document.querySelector('[data-page=request]'))">📥 Request Money</button>
+          <button class="btn btn-secondary" onclick="showPage('bunqme',document.querySelector('[data-page=bunqme]'))">🔗 Create bunq.me</button>
+          <button class="btn btn-secondary" onclick="loadTransactions()">🔄 Refresh Transactions</button>
         </div>
       </div>
-      <input type="file" id="file-input" accept="image/jpeg,image/png,image/gif,image/webp" />
-      <div id="preview-wrap">
-        <img id="preview-img" alt="Receipt preview" />
-        <div class="preview-badge">READY</div><br>
-        <button class="change-btn" id="change-btn">↩ Change image</button>
-      </div>
-      <button class="btn-primary" id="analyze-btn" disabled>
-        <span id="analyze-label">✦ Analyse with Claude AI</span>
-      </button>
-    </div>
-
-    <div class="card" id="results-card">
-      <div class="scan-line" id="scan-line"></div>
-      <div class="card-label">AI Analysis</div>
-      <div id="results-content">
-        <div class="empty-state">
-          <div class="empty-icon">◈</div>
-          <p>Upload a receipt and hit<br><strong>Analyse</strong> — results appear here.</p>
-        </div>
+      <div class="card">
+        <div class="card-title">Recent Transactions</div>
+        <div id="dash-txns"><div style="color:var(--muted);font-size:13px">Loading…</div></div>
       </div>
     </div>
 
-    <div class="how-card">
-      <div class="card-label">How it works</div>
-      <div class="how-steps">
-        <div class="how-step">
-          <div class="step-number">01 —</div>
-          <div class="step-icon">📸</div>
-          <h4>Snap a receipt</h4>
-          <p>Upload any photo — restaurant bill, store receipt, taxi fare. Any image works.</p>
+    <!-- ══ RECEIPT AI ══ -->
+    <div class="page" id="page-receipt-ai">
+      <div class="page-title">Receipt AI</div>
+      <div class="page-sub">Drop a receipt photo — Claude reads it and logs it to bunq</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Upload Receipt</div>
+          <div id="drop-zone" role="button" tabindex="0">
+            <div class="upload-icon-wrap">🧾</div>
+            <p><strong>Drag &amp; drop</strong> or <strong>click to browse</strong></p>
+            <div class="file-pills">
+              <span class="file-pill">JPG</span><span class="file-pill">PNG</span>
+              <span class="file-pill">WEBP</span><span class="file-pill">MAX 10MB</span>
+            </div>
+          </div>
+          <input type="file" id="file-input" accept="image/jpeg,image/png,image/gif,image/webp"/>
+          <div id="preview-wrap">
+            <img id="preview-img" alt="Receipt preview"/>
+            <div class="preview-badge">READY</div><br>
+            <span class="change-link" id="change-btn">↩ Change image</span>
+          </div>
+          <button class="btn btn-primary btn-full" id="analyze-btn" style="margin-top:14px" disabled>
+            <span id="analyze-label">✦ Analyse with Claude AI</span>
+          </button>
         </div>
-        <div class="how-step">
-          <div class="step-number">02 —</div>
-          <div class="step-icon">🧠</div>
-          <h4>Claude reads it</h4>
-          <p>Claude's multimodal vision AI extracts merchant, total, items, category and date in seconds.</p>
-        </div>
-        <div class="how-step">
-          <div class="step-number">03 —</div>
-          <div class="step-icon">💳</div>
-          <h4>Log to bunq</h4>
-          <p>One click creates a real payment request in your bunq account. Zero manual data entry.</p>
+
+        <div class="card" id="results-card" style="display:none">
+          <div class="scan-line" id="scan-line"></div>
+          <div class="card-title">AI Analysis</div>
+          <div id="results-content"></div>
         </div>
       </div>
     </div>
-  </main>
 
-  <div id="toast"></div>
+    <!-- ══ ACCOUNTS ══ -->
+    <div class="page" id="page-accounts">
+      <div class="page-title">Monetary Accounts</div>
+      <div class="page-sub">View and create bunq bank accounts</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <button class="btn btn-secondary" onclick="loadAccounts()">🔄 Refresh</button>
+        <button class="btn btn-primary" onclick="document.getElementById('create-acc-form').style.display=document.getElementById('create-acc-form').style.display==='none'?'block':'none'">+ New Account</button>
+      </div>
+      <div id="create-acc-form" style="display:none" class="card">
+        <div class="card-title">Create Account</div>
+        <div class="form-group"><label>Account Name</label><input id="new-acc-name" type="text" placeholder="e.g. Savings Account" maxlength="50"/></div>
+        <button class="btn btn-primary" id="create-acc-btn" onclick="createAccount()"><span id="create-acc-label">Create Account</span></button>
+        <div class="result-box" id="create-acc-result"></div>
+      </div>
+      <div id="accounts-list"><div style="color:var(--muted);font-size:13px">Loading…</div></div>
+    </div>
 
-  <script>
-    const dropZone       = document.getElementById('drop-zone');
-    const fileInput      = document.getElementById('file-input');
-    const previewWrap    = document.getElementById('preview-wrap');
-    const previewImg     = document.getElementById('preview-img');
-    const changeBtn      = document.getElementById('change-btn');
-    const analyzeBtn     = document.getElementById('analyze-btn');
-    const analyzeLabel   = document.getElementById('analyze-label');
-    const resultsCard    = document.getElementById('results-card');
-    const resultsContent = document.getElementById('results-content');
-    const scanLine       = document.getElementById('scan-line');
-    const toast          = document.getElementById('toast');
-    let selectedFile = null, lastResult = null;
+    <!-- ══ TRANSACTIONS ══ -->
+    <div class="page" id="page-transactions">
+      <div class="page-title">Transactions</div>
+      <div class="page-sub">Payment history for your primary account</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <select id="txn-count" style="width:auto;padding:8px 12px">
+          <option value="10">Last 10</option>
+          <option value="20" selected>Last 20</option>
+          <option value="50">Last 50</option>
+          <option value="200">Last 200</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadTransactions()">🔄 Load</button>
+      </div>
+      <div class="card">
+        <div id="txns-table"><div style="color:var(--muted);font-size:13px">Click Load to fetch transactions.</div></div>
+      </div>
+    </div>
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') fileInput.click(); });
-    changeBtn.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
-    fileInput.addEventListener('change', () => { if(fileInput.files[0]) loadFile(fileInput.files[0]); });
-
-    function loadFile(f) {
-      selectedFile = f;
-      previewImg.src = URL.createObjectURL(f);
-      previewWrap.style.display = 'block';
-      dropZone.style.display = 'none';
-      analyzeBtn.disabled = false;
-      analyzeLabel.textContent = '✦ Analyse with Claude AI';
-      resultsCard.style.display = 'none';
-      lastResult = null;
-    }
-
-    analyzeBtn.addEventListener('click', async () => {
-      if (!selectedFile) return;
-      analyzeBtn.disabled = true;
-      analyzeLabel.innerHTML = '<div class="spinner"></div> Analysing…';
-      resultsCard.style.display = 'block';
-      scanLine.style.display = 'block';
-      resultsContent.innerHTML = `
-        <div>
-          <div class="sk-block" style="height:70px;margin-bottom:16px"></div>
-          <div class="sk-line" style="width:80%"></div>
-          <div class="sk-line" style="width:55%"></div>
-          <div class="sk-line" style="width:70%"></div>
-          <div class="sk-line" style="width:40%"></div>
-          <div class="sk-block" style="height:44px;margin-top:20px"></div>
-        </div>`;
-      const form = new FormData();
-      form.append('receipt', selectedFile);
-      try {
-        const res = await fetch('/analyze', { method: 'POST', body: form });
-        const data = await res.json();
-        scanLine.style.display = 'none';
-        if (!res.ok) {
-          resultsContent.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠</div><p style="color:#ff4d6d;font-size:13px">${escHtml(data.error)}</p></div>`;
-          showError(data.error || 'Analysis failed');
-          return;
-        }
-        lastResult = data;
-        renderResults(data);
-      } catch { scanLine.style.display='none'; showError('Network error — is the server running?'); }
-      finally { analyzeBtn.disabled=false; analyzeLabel.textContent='✦ Analyse with Claude AI'; }
-    });
-
-    function renderResults(d) {
-      const cur = d.currency||'EUR', amt = Number(d.amount||0).toFixed(2);
-      const itemRows = (d.items||[]).map(i=>`<div class="item-row"><span>${escHtml(i.name)}</span><span class="item-price">${cur} ${Number(i.price).toFixed(2)}</span></div>`).join('');
-      const itemsBlock = d.items&&d.items.length ? `<div class="items-header">Line items</div><div class="items-list">${itemRows}</div>` : '';
-      const datePart = d.date ? `<div class="meta-chip">📅 ${escHtml(d.date)}</div>` : '';
-      resultsContent.innerHTML = `
-        <div class="result-merchant">${escHtml(d.merchant||'Unknown')}</div>
-        <div class="result-amount">${cur} ${amt}</div>
-        <div class="result-meta">
-          <div class="meta-chip">${escHtml(d.emoji||'📋')} ${escHtml(d.category)}</div>
-          ${datePart}
+    <!-- ══ SEND PAYMENT ══ -->
+    <div class="page" id="page-payment">
+      <div class="page-title">Send Payment</div>
+      <div class="page-sub">Transfer EUR from your sandbox account</div>
+      <div class="card" style="max-width:540px">
+        <div class="card-title">Payment Details</div>
+        <div class="form-row">
+          <div class="form-group"><label>Amount (EUR)</label><input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="10.00"/></div>
+          <div class="form-group"><label>Recipient Email</label><input id="pay-email" type="email" value="sugardaddy@bunq.com"/></div>
         </div>
-        ${itemsBlock}
-        <div class="input-label" style="margin-top:${d.items&&d.items.length?'4px':'0'}">bunq payment note</div>
-        <input id="desc-input" type="text" maxlength="140" value="${escHtml(d.description||'')}" placeholder="Note for bunq…" />
-        <button class="btn-log" id="log-btn">💳 Log to bunq</button>
-        <div id="success-overlay"></div>`;
-      document.getElementById('log-btn').addEventListener('click', logToBunq);
-    }
+        <div class="form-group"><label>Recipient Name</label><input id="pay-name" type="text" placeholder="Sugar Daddy"/></div>
+        <div class="form-group"><label>Description</label><input id="pay-desc" type="text" placeholder="Hackathon test payment" maxlength="140"/></div>
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;margin-bottom:16px">
+          <input type="checkbox" id="pay-fund" style="width:auto"/>
+          <label for="pay-fund" style="text-transform:none;font-family:var(--font);font-size:13px;letter-spacing:0;cursor:pointer">Request €500 from Sugar Daddy first (fund account)</label>
+        </div>
+        <button class="btn btn-primary btn-full" id="pay-btn" onclick="sendPayment()"><span id="pay-label">💸 Send Payment</span></button>
+        <div class="result-box" id="pay-result"></div>
+      </div>
+    </div>
 
-    async function logToBunq() {
-      if (!lastResult) return;
-      const logBtn = document.getElementById('log-btn');
-      const descInput = document.getElementById('desc-input');
-      logBtn.disabled = true;
-      logBtn.innerHTML = '<div class="spinner light"></div> Logging…';
-      try {
-        const res = await fetch('/log-to-bunq', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({...lastResult, description: descInput?.value||lastResult.description})
-        });
-        const data = await res.json();
-        if (!res.ok) { showError(data.error||'Failed to log to bunq'); logBtn.disabled=false; logBtn.innerHTML='💳 Log to bunq'; return; }
-        logBtn.style.display = 'none';
-        const ov = document.getElementById('success-overlay');
-        ov.style.display = 'block';
-        ov.innerHTML = `
-          <div class="success-icon">✓</div>
-          <h3>Logged to bunq</h3>
-          <p>Payment request created in your account.</p>
-          <div class="req-badge">REQ #${escHtml(String(data.request_id))}</div><br>
-          <button class="btn-reset" id="reset-btn">↩ Scan another receipt</button>`;
-        document.getElementById('reset-btn').addEventListener('click', resetApp);
-        showSuccess('Expense logged to bunq!');
-      } catch { showError('Network error — please try again.'); logBtn.disabled=false; logBtn.innerHTML='💳 Log to bunq'; }
-    }
+    <!-- ══ REQUEST MONEY ══ -->
+    <div class="page" id="page-request">
+      <div class="page-title">Request Money</div>
+      <div class="page-sub">Create a RequestInquiry — ask someone to pay you</div>
+      <div class="card" style="max-width:540px">
+        <div class="card-title">Request Details</div>
+        <div class="form-row">
+          <div class="form-group"><label>Amount (EUR)</label><input id="req-amount" type="number" min="0.01" step="0.01" placeholder="25.00"/></div>
+          <div class="form-group"><label>From Email</label><input id="req-email" type="email" value="sugardaddy@bunq.com"/></div>
+        </div>
+        <div class="form-group"><label>From Name</label><input id="req-name" type="text" placeholder="Sugar Daddy"/></div>
+        <div class="form-group"><label>Description</label><input id="req-desc" type="text" placeholder="Expense split" maxlength="140"/></div>
+        <button class="btn btn-primary btn-full" id="req-btn" onclick="requestMoney()"><span id="req-label">📥 Request Money</span></button>
+        <div class="result-box" id="req-result"></div>
+      </div>
+    </div>
 
-    function resetApp() {
-      selectedFile=null; lastResult=null; fileInput.value=''; previewImg.src='';
-      previewWrap.style.display='none'; dropZone.style.display='block';
-      analyzeBtn.disabled=true; analyzeLabel.textContent='✦ Analyse with Claude AI';
-      resultsCard.style.display='none';
-    }
+    <!-- ══ BUNQ.ME ══ -->
+    <div class="page" id="page-bunqme">
+      <div class="page-title">bunq.me Payment Link</div>
+      <div class="page-sub">Generate a shareable link anyone can pay</div>
+      <div class="card" style="max-width:540px">
+        <div class="card-title">Link Details</div>
+        <div class="form-row">
+          <div class="form-group"><label>Amount (EUR)</label><input id="bme-amount" type="number" min="0.01" step="0.01" placeholder="5.00"/></div>
+        </div>
+        <div class="form-group"><label>Description</label><input id="bme-desc" type="text" placeholder="Hackathon donation" maxlength="140"/></div>
+        <button class="btn btn-primary btn-full" id="bme-btn" onclick="createBunqme()"><span id="bme-label">🔗 Create Payment Link</span></button>
+        <div class="result-box" id="bme-result"></div>
+      </div>
+    </div>
 
-    let toastTimer;
-    function showToast(msg, type) { clearTimeout(toastTimer); toast.textContent=msg; toast.className=type; toast.style.display='block'; toastTimer=setTimeout(()=>{toast.style.display='none'},3500); }
-    const showSuccess = m => showToast(m,'success');
-    const showError   = m => showToast(m,'error');
-    function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-  </script>
+  </div><!-- /content -->
+</div><!-- /shell -->
+
+<div id="toast"></div>
+
+<script>
+  // ── Navigation ────────────────────────────────────────────────────────
+  function showPage(id, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  let toastTmr;
+  function toast(msg, type='success') {
+    clearTimeout(toastTmr);
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = type; el.style.display = 'block';
+    toastTmr = setTimeout(() => el.style.display = 'none', 3500);
+  }
+
+  function setBtn(id, labelId, loading, text) {
+    const btn = document.getElementById(id);
+    const lbl = document.getElementById(labelId);
+    btn.disabled = loading;
+    lbl.innerHTML = loading ? '<div class="spinner light"></div> ' + text : text;
+  }
+
+  function showResult(id, msg, type='success') {
+    const el = document.getElementById(id);
+    el.style.display = 'block';
+    el.className = 'result-box ' + type;
+    el.innerHTML = msg;
+  }
+
+  async function api(url, opts={}) {
+    const res = await fetch(url, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  // ── Status ────────────────────────────────────────────────────────────
+  async function loadStatus() {
+    try {
+      const d = await api('/api/status');
+      document.getElementById('stat-uid').textContent = d.user_id;
+      document.getElementById('stat-bal').textContent = `€${d.primary_balance}`;
+      document.getElementById('stat-cur').textContent = d.primary_currency;
+      document.getElementById('stat-acc').textContent = d.account_count;
+      document.getElementById('status-bal').textContent = `€${d.primary_balance} EUR`;
+    } catch(e) { document.getElementById('status-bal').textContent = 'Offline'; }
+  }
+
+  // ── Accounts ──────────────────────────────────────────────────────────
+  async function loadAccounts() {
+    const el = document.getElementById('accounts-list');
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
+    try {
+      const accounts = await api('/api/accounts');
+      if (!accounts.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No accounts found.</div>'; return; }
+      el.innerHTML = '<div class="account-cards">' + accounts.map(a => `
+        <div class="account-card">
+          <div class="account-card-label">${esc(a.status)}</div>
+          <div class="account-card-name">${esc(a.description || 'Account')}</div>
+          <div class="account-card-balance">€${esc(a.balance)}</div>
+          <div class="account-card-iban">${esc(a.iban || 'No IBAN')}</div>
+        </div>`).join('') + '</div>';
+    } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
+  }
+
+  async function createAccount() {
+    const name = document.getElementById('new-acc-name').value.trim() || 'New Account';
+    setBtn('create-acc-btn','create-acc-label',true,'Creating…');
+    try {
+      const d = await api('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({description: name}) });
+      showResult('create-acc-result', `✓ Account created — ID <span class="result-val">#${esc(String(d.account_id))}</span>`, 'success');
+      toast('Account created!');
+      loadAccounts();
+    } catch(e) { showResult('create-acc-result', esc(e.message), 'error'); toast(e.message, 'error'); }
+    finally { setBtn('create-acc-btn','create-acc-label',false,'Create Account'); }
+  }
+
+  // ── Transactions ──────────────────────────────────────────────────────
+  async function loadTransactions(dashMode=false) {
+    const count = dashMode ? 5 : parseInt(document.getElementById('txn-count')?.value || 10);
+    const el = document.getElementById(dashMode ? 'dash-txns' : 'txns-table');
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
+    try {
+      const txns = await api(`/api/transactions?count=${count}`);
+      if (!txns.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No transactions yet — send a payment first.</div>'; return; }
+      el.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Type</th></tr></thead>
+        <tbody>${txns.map(t => {
+          const pos = parseFloat(t.amount) > 0;
+          return `<tr>
+            <td class="td-mono" style="font-size:11px;color:var(--muted)">${esc(t.date)}</td>
+            <td class="td-mono ${pos?'td-pos':'td-neg'}">${pos?'+':''}${esc(t.amount)} ${esc(t.currency||'EUR')}</td>
+            <td>${esc(t.counterparty)}</td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</td>
+            <td><span class="td-pill ${pos?'pill-green':'pill-blue'}">${esc(t.type||'—')}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
+  }
+
+  // ── Payment ───────────────────────────────────────────────────────────
+  async function sendPayment() {
+    const amount = document.getElementById('pay-amount').value;
+    const email  = document.getElementById('pay-email').value.trim();
+    const name   = document.getElementById('pay-name').value.trim();
+    const desc   = document.getElementById('pay-desc').value.trim();
+    const fund   = document.getElementById('pay-fund').checked;
+    if (!amount || !email) { toast('Amount and email are required', 'error'); return; }
+    setBtn('pay-btn','pay-label',true,'Processing…');
+    try {
+      const d = await api('/api/payment', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount, to_email:email, to_name:name, description:desc, fund_first:fund}) });
+      showResult('pay-result', `✓ Payment sent — ID <span class="result-val">#${esc(String(d.payment_id))}</span>`, 'success');
+      toast('Payment sent!');
+      loadStatus();
+    } catch(e) { showResult('pay-result', esc(e.message), 'error'); toast(e.message, 'error'); }
+    finally { setBtn('pay-btn','pay-label',false,'💸 Send Payment'); }
+  }
+
+  // ── Request money ─────────────────────────────────────────────────────
+  async function requestMoney() {
+    const amount = document.getElementById('req-amount').value;
+    const email  = document.getElementById('req-email').value.trim();
+    const name   = document.getElementById('req-name').value.trim();
+    const desc   = document.getElementById('req-desc').value.trim();
+    if (!amount) { toast('Amount is required', 'error'); return; }
+    setBtn('req-btn','req-label',true,'Requesting…');
+    try {
+      const d = await api('/api/request-money', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount, from_email:email, from_name:name, description:desc}) });
+      showResult('req-result', `✓ Request created — ID <span class="result-val">#${esc(String(d.request_id))}</span>`, 'success');
+      toast('Money requested!');
+    } catch(e) { showResult('req-result', esc(e.message), 'error'); toast(e.message, 'error'); }
+    finally { setBtn('req-btn','req-label',false,'📥 Request Money'); }
+  }
+
+  // ── bunq.me ───────────────────────────────────────────────────────────
+  async function createBunqme() {
+    const amount = document.getElementById('bme-amount').value;
+    const desc   = document.getElementById('bme-desc').value.trim();
+    if (!amount) { toast('Amount is required', 'error'); return; }
+    setBtn('bme-btn','bme-label',true,'Creating…');
+    try {
+      const d = await api('/api/bunqme', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount, description:desc}) });
+      const urlHtml = d.url ? `<br><a href="${esc(d.url)}" target="_blank" style="color:var(--neon)">${esc(d.url)}</a>` : '';
+      showResult('bme-result', `✓ Link created — Tab <span class="result-val">#${esc(String(d.tab_id))}</span>${urlHtml}`, 'success');
+      toast('bunq.me link created!');
+    } catch(e) { showResult('bme-result', esc(e.message), 'error'); toast(e.message, 'error'); }
+    finally { setBtn('bme-btn','bme-label',false,'🔗 Create Payment Link'); }
+  }
+
+  // ── Receipt AI ────────────────────────────────────────────────────────
+  const dropZone     = document.getElementById('drop-zone');
+  const fileInput    = document.getElementById('file-input');
+  const previewWrap  = document.getElementById('preview-wrap');
+  const previewImg   = document.getElementById('preview-img');
+  const analyzeBtn   = document.getElementById('analyze-btn');
+  const analyzeLabel = document.getElementById('analyze-label');
+  const resultsCard  = document.getElementById('results-card');
+  const resultsCont  = document.getElementById('results-content');
+  const scanLine     = document.getElementById('scan-line');
+  let selectedFile = null, lastResult = null;
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') fileInput.click(); });
+  document.getElementById('change-btn').addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', () => { if(fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+  function loadFile(f) {
+    selectedFile = f; previewImg.src = URL.createObjectURL(f);
+    previewWrap.style.display='block'; dropZone.style.display='none';
+    analyzeBtn.disabled=false; analyzeLabel.textContent='✦ Analyse with Claude AI';
+    resultsCard.style.display='none'; lastResult=null;
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    analyzeBtn.disabled=true; analyzeLabel.innerHTML='<div class="spinner"></div> Analysing…';
+    resultsCard.style.display='block'; scanLine.style.display='block';
+    resultsCont.innerHTML=`<div><div class="sk-block" style="height:60px;margin-bottom:14px"></div><div class="sk-line" style="width:75%"></div><div class="sk-line" style="width:50%"></div><div class="sk-line" style="width:65%"></div><div class="sk-block" style="height:40px;margin-top:14px"></div></div>`;
+    const form = new FormData(); form.append('receipt', selectedFile);
+    try {
+      const res = await fetch('/api/analyze', { method:'POST', body:form });
+      const data = await res.json();
+      scanLine.style.display='none';
+      if (!res.ok) { resultsCont.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(data.error)}</div>`; toast(data.error,'error'); return; }
+      lastResult=data; renderResults(data);
+    } catch { scanLine.style.display='none'; toast('Network error','error'); }
+    finally { analyzeBtn.disabled=false; analyzeLabel.textContent='✦ Analyse with Claude AI'; }
+  });
+
+  function renderResults(d) {
+    const cur=d.currency||'EUR', amt=Number(d.amount||0).toFixed(2);
+    const itemRows=(d.items||[]).map(i=>`<div class="item-row"><span>${esc(i.name)}</span><span class="item-price">${cur} ${Number(i.price).toFixed(2)}</span></div>`).join('');
+    const itemsBlock=d.items&&d.items.length?`<div class="items-label">Line items</div>${itemRows}<br>`:'';
+    const datePart=d.date?`<div class="meta-chip">📅 ${esc(d.date)}</div>`:'';
+    resultsCont.innerHTML=`
+      <div class="result-merchant">${esc(d.merchant||'Unknown')}</div>
+      <div class="result-amount">${cur} ${amt}</div>
+      <div class="meta-chips"><div class="meta-chip">${esc(d.emoji||'📋')} ${esc(d.category)}</div>${datePart}</div>
+      ${itemsBlock}
+      <div class="form-group"><label>bunq payment note</label>
+        <input id="desc-input" type="text" maxlength="140" value="${esc(d.description||'')}" placeholder="Note for bunq…"/>
+      </div>
+      <button class="btn btn-primary btn-full" id="log-btn">💳 Log to bunq</button>
+      <div id="log-result" class="result-box"></div>`;
+    document.getElementById('log-btn').addEventListener('click', logToBunq);
+  }
+
+  async function logToBunq() {
+    if (!lastResult) return;
+    const desc = document.getElementById('desc-input')?.value || lastResult.description;
+    const logBtn = document.getElementById('log-btn');
+    logBtn.disabled=true; logBtn.innerHTML='<div class="spinner light"></div> Logging…';
+    try {
+      const d = await api('/api/log-to-bunq', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({...lastResult, description:desc}) });
+      document.getElementById('log-result').style.display='block';
+      document.getElementById('log-result').className='result-box success';
+      document.getElementById('log-result').innerHTML=`✓ Logged — Request <span class="result-val">#${esc(String(d.request_id))}</span>`;
+      logBtn.style.display='none'; toast('Expense logged to bunq!');
+      loadStatus();
+    } catch(e) { const r=document.getElementById('log-result'); r.style.display='block'; r.className='result-box error'; r.textContent=e.message; logBtn.disabled=false; logBtn.textContent='💳 Log to bunq'; toast(e.message,'error'); }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────
+  loadStatus();
+  loadAccounts();
+  loadTransactions(true);
+</script>
 </body>
 </html>
