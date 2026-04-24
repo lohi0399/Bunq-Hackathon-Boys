@@ -331,7 +331,8 @@
     <span id="hdr-savings" title="Savings">S —</span>
     <span id="hdr-current" title="Current">C —</span>
     <span style="font-family:var(--mono);font-size:11px;color:var(--neon);background:rgba(0,255,179,.08);border:1px solid rgba(0,255,179,.15);border-radius:6px;padding:3px 8px" title="{{ iban }}">👤 {{ username }}</span>
-    <span style="font-family:var(--mono);font-size:10px;color:var(--blue);background:rgba(79,140,255,.06);border:1px solid rgba(79,140,255,.15);border-radius:6px;padding:3px 8px;letter-spacing:.3px" title="Your IBAN">{{ iban }}</span>
+    <span style="font-family:var(--mono);font-size:10px;color:#7dd3fc;background:rgba(125,211,252,.06);border:1px solid rgba(125,211,252,.15);border-radius:6px;padding:3px 8px;letter-spacing:.3px" title="Savings IBAN">S: {{ savings_iban }}</span>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--blue);background:rgba(79,140,255,.06);border:1px solid rgba(79,140,255,.15);border-radius:6px;padding:3px 8px;letter-spacing:.3px" title="Current IBAN">C: {{ current_iban }}</span>
     <a href="/db-viewer" target="_blank" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text2);text-decoration:none;background:var(--surface2);border:1px solid var(--border-hi);border-radius:6px;padding:3px 8px">🗄 DB</a>
     <a href="/logout" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--danger);text-decoration:none;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:6px;padding:3px 8px">⏻ Out</a>
   </div>
@@ -363,6 +364,9 @@
   </button>
   <button class="nav-item" data-page="payment" onclick="nav('payment',this)">
     <span class="nav-icon">💸</span>Send Payment
+  </button>
+  <button class="nav-item" data-page="transfer" onclick="nav('transfer',this)">
+    <span class="nav-icon">🔄</span>Transfer Funds
   </button>
   <button class="nav-item" data-page="request" onclick="nav('request',this)">
     <span class="nav-icon">📥</span>Request Money
@@ -609,6 +613,43 @@
     </div>
   </div>
 
+  <!-- ─── TRANSFER FUNDS ─── -->
+  <div class="page" id="page-transfer">
+    <div class="page-header">
+      <div class="page-title">Transfer Funds</div>
+      <div class="page-sub">Move money between your Savings and Current accounts</div>
+    </div>
+    <div class="card" style="max-width:520px">
+      <div class="card-title">Internal Transfer</div>
+
+      <!-- IBAN info -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+        <div style="background:var(--surface2);border:1px solid var(--border-hi);border-radius:10px;padding:12px">
+          <div style="font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Savings IBAN</div>
+          <div style="font-family:var(--mono);font-size:11px;color:#7dd3fc;word-break:break-all">{{ savings_iban or '—' }}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border-hi);border-radius:10px;padding:12px">
+          <div style="font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Current IBAN</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--blue);word-break:break-all">{{ current_iban or '—' }}</div>
+        </div>
+      </div>
+
+      <div class="fgroup">
+        <label>Direction</label>
+        <select id="xfr-dir">
+          <option value="to_current">↦ Savings → Current</option>
+          <option value="to_savings">↤ Current → Savings</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>Amount (EUR)</label><input id="xfr-amt" type="number" min="0.01" step="0.01" placeholder="50.00"/></div>
+      <div class="fgroup"><label>Note (optional)</label><input id="xfr-desc" type="text" placeholder="Monthly savings" maxlength="140"/></div>
+      <button class="btn btn-primary btn-full" id="xfr-btn" onclick="transferFunds()">
+        <span id="xfr-lbl">🔄 Transfer</span>
+      </button>
+      <div class="rbox" id="xfr-res"></div>
+    </div>
+  </div>
+
   <!-- ─── SEND PAYMENT ─── -->
   <div class="page" id="page-payment">
     <div class="page-header">
@@ -826,6 +867,23 @@ async function loadTransactions(dashMode=false) {
         </tr>`;
       }).join('')}</tbody></table></div>`;
   } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
+}
+
+// ═══ INTERNAL TRANSFER ════════════════════════════════════════════════════════
+async function transferFunds() {
+  const amt  = document.getElementById('xfr-amt').value;
+  const dir  = document.getElementById('xfr-dir').value;
+  const desc = document.getElementById('xfr-desc').value.trim();
+  if (!amt) { toast('Amount required','err'); return; }
+  setBtn('xfr-btn','xfr-lbl',true,'Transferring…');
+  try {
+    const d = await api('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amount:amt,direction:dir,description:desc||'Internal transfer'})});
+    const label = dir === 'to_current' ? 'Savings → Current' : 'Current → Savings';
+    showRes('xfr-res',`✓ Transferred — ${label} &nbsp;<span class="rval">#${esc(String(d.payment_id))}</span>`,'ok');
+    toast('Transfer complete!'); loadStatus();
+  } catch(e) { showRes('xfr-res',esc(e.message),'err'); toast(e.message,'err'); }
+  finally { setBtn('xfr-btn','xfr-lbl',false,'🔄 Transfer'); }
 }
 
 // ═══ PAYMENT ══════════════════════════════════════════════════════════════════

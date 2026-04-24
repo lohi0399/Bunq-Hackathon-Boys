@@ -59,7 +59,9 @@ class User(UserMixin):
     def __init__(self, user_dict: dict):
         self.id           = user_dict["id"]
         self.username     = user_dict["username"]
-        self.iban         = user_dict.get("iban", "")
+        self.iban         = user_dict.get("iban", "")          # primary (savings)
+        self.savings_iban = user_dict.get("savings_iban") or user_dict.get("iban", "")
+        self.current_iban = user_dict.get("current_iban") or user_dict.get("iban", "")
         self.bunq_api_key = user_dict.get("bunq_api_key", "")
         self.bunq_user_id = user_dict.get("bunq_user_id")
 
@@ -163,12 +165,12 @@ def login_page():
         return redirect(url_for("index"))
     error = None
     if request.method == "POST":
-        iban = request.form.get("iban", "").strip().upper()
-        user_row = db.get_user_by_iban(iban)
+        username = request.form.get("username", "").strip()
+        user_row = db.get_user_by_username(username)
         if user_row:
             login_user(User(user_row), remember=True)
             return redirect(url_for("index"))
-        error = "IBAN not found. Please register first."
+        error = "User ID not found. Please register first."
     return render_template("login.html", error=error, mode="login")
 
 
@@ -185,46 +187,43 @@ def register_page():
             error = "Username already taken."
         else:
             try:
-                # Create a fresh bunq sandbox user (mirrors 02_create_monetary_account.py)
+                # Create a fresh bunq sandbox user (like 02_create_monetary_account.py)
                 api_key = BunqClient.create_sandbox_user()
                 context_file = f"bunq_context_{username}.json"
                 client = BunqClient(api_key=api_key, sandbox=True, context_file=context_file)
                 client.authenticate()
 
-                # Find IBAN from the default account bunq creates on registration
-                accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
-                iban = None
-                for item in accounts:
-                    acc = item.get("MonetaryAccountBank", {})
-                    if acc.get("status") == "ACTIVE":
-                        for alias in acc.get("alias", []):
-                            if alias.get("type") == "IBAN":
-                                iban = alias["value"]
-                                break
-                    if iban:
-                        break
+                def _get_iban(acc: dict) -> str | None:
+                    for alias in acc.get("alias", []):
+                        if alias.get("type") == "IBAN":
+                            return alias["value"]
+                    return None
 
-                # If no default account yet, create one (like 02_create_monetary_account.py)
-                if not iban:
-                    client.post(f"user/{client.user_id}/monetary-account-bank", {
-                        "currency": "EUR",
-                        "description": f"{username}'s Account",
+                def _create_account(desc: str) -> dict:
+                    resp = client.post(f"user/{client.user_id}/monetary-account-bank", {
+                        "currency": BUNQ_CURRENCY, "description": desc,
                     })
-                    accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
-                    for item in accounts:
-                        acc = item.get("MonetaryAccountBank", {})
-                        if acc.get("status") == "ACTIVE":
-                            for alias in acc.get("alias", []):
-                                if alias.get("type") == "IBAN":
-                                    iban = alias["value"]
-                                    break
-                        if iban:
-                            break
+                    new_id = resp[0]["Id"]["id"]
+                    return client.get(f"user/{client.user_id}/monetary-account-bank/{new_id}")[0]["MonetaryAccountBank"]
 
-                if not iban:
+                # Read existing accounts (like 03_list_monetary_accounts.py)
+                raw_accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
+                active = [item["MonetaryAccountBank"] for item in raw_accounts
+                          if item.get("MonetaryAccountBank", {}).get("status") == "ACTIVE"]
+                by_desc = {a["description"].lower(): a for a in active}
+
+                savings_acc = by_desc.get("savings") or _create_account("Savings")
+                current_acc = by_desc.get("current") or _create_account("Current")
+
+                savings_iban = _get_iban(savings_acc)
+                current_iban = _get_iban(current_acc)
+                primary_iban = savings_iban or current_iban
+
+                if not primary_iban:
                     error = "Could not retrieve IBAN from bunq. Please try again."
                 else:
-                    uid = db.create_user(username, iban, api_key, client.user_id)
+                    uid = db.create_user(username, primary_iban, api_key, client.user_id,
+                                        savings_iban=savings_iban, current_iban=current_iban)
                     user_row = db.get_user_by_id(uid)
                     login_user(User(user_row), remember=True)
                     return redirect(url_for("index"))
@@ -245,7 +244,13 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html", username=current_user.username, iban=current_user.iban)
+    return render_template(
+        "index.html",
+        username=current_user.username,
+        iban=current_user.iban,
+        savings_iban=current_user.savings_iban,
+        current_iban=current_user.current_iban,
+    )
 
 
 # ── Status ─────────────────────────────────────────────────────────────────────
@@ -334,6 +339,50 @@ def api_make_payment():
             "counterparty_alias": {"type": "EMAIL", "value": to_email, "name": to_name},
             "description": description,
         })
+        return jsonify({"success": True, "payment_id": resp[0]["Id"]["id"]})
+    except Exception as e:
+        return _handle_bunq_error(e)
+
+
+# ── Internal transfer (Savings ↔ Current) ─────────────────────────────────────
+
+@app.route("/api/transfer", methods=["POST"])
+@login_required
+def api_transfer():
+    data = request.get_json(force=True) or {}
+    amount      = data.get("amount")
+    direction   = str(data.get("direction") or "to_current").lower()  # to_current | to_savings
+    description = str(data.get("description") or "Internal transfer")[:140]
+
+    if not amount:
+        return jsonify({"error": "amount is required"}), 400
+    try:
+        float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a number"}), 400
+
+    try:
+        client = _get_client()
+        accs = _ensure_two_accounts(client)
+
+        if direction == "to_current":
+            from_acc = accs["savings"]
+            to_iban  = _format_account(accs["current"])["iban"]
+        else:
+            from_acc = accs["current"]
+            to_iban  = _format_account(accs["savings"])["iban"]
+
+        if not to_iban:
+            return jsonify({"error": "Destination account has no IBAN"}), 500
+
+        resp = client.post(
+            f"user/{client.user_id}/monetary-account/{from_acc['id']}/payment",
+            {
+                "amount": {"value": f"{float(amount):.2f}", "currency": BUNQ_CURRENCY},
+                "counterparty_alias": {"type": "IBAN", "value": to_iban, "name": current_user.username},
+                "description": description,
+            },
+        )
         return jsonify({"success": True, "payment_id": resp[0]["Id"]["id"]})
     except Exception as e:
         return _handle_bunq_error(e)
@@ -725,5 +774,8 @@ def log_to_bunq_legacy():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"\n  ReceiptAI → http://localhost:{port}\n")
-    app.run(debug=True, port=port)
+    host = os.getenv("HOST", "0.0.0.0")   # 0.0.0.0 → accessible on your local network (mobile)
+    local_ip = os.popen("hostname -I 2>/dev/null | awk '{print $1}'").read().strip() or "localhost"
+    print(f"\n  ReceiptAI → http://localhost:{port}")
+    print(f"  Mobile    → http://{local_ip}:{port}  (same WiFi)\n")
+    app.run(debug=True, host=host, port=port)

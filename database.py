@@ -18,15 +18,17 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "receiptai.db
 def init_db() -> None:
     """Create tables if they don't exist, migrating the users table if needed."""
     with _conn() as con:
-        # Migrate users table to IBAN-based schema if needed
+        # Migrate users table to add savings_iban / current_iban if missing
         cols = [row[1] for row in con.execute("PRAGMA table_info(users)").fetchall()]
-        if "iban" not in cols:
+        if "iban" not in cols or "savings_iban" not in cols:
             con.execute("DROP TABLE IF EXISTS users")
             con.execute("""
                 CREATE TABLE users (
                     id            INTEGER PRIMARY KEY AUTOINCREMENT,
                     username      TEXT    NOT NULL UNIQUE,
                     iban          TEXT    NOT NULL UNIQUE,
+                    savings_iban  TEXT,
+                    current_iban  TEXT,
                     bunq_api_key  TEXT    NOT NULL,
                     bunq_user_id  INTEGER NOT NULL,
                     created_at    TEXT    NOT NULL
@@ -37,6 +39,8 @@ def init_db() -> None:
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 username      TEXT    NOT NULL UNIQUE,
                 iban          TEXT    NOT NULL UNIQUE,
+                savings_iban  TEXT,
+                current_iban  TEXT,
                 bunq_api_key  TEXT    NOT NULL,
                 bunq_user_id  INTEGER NOT NULL,
                 created_at    TEXT    NOT NULL
@@ -157,12 +161,16 @@ def list_xray_scans(limit: int = 20) -> list[dict]:
 
 # ── Users (IBAN-based, no password) ──────────────────────────────────────────
 
-def create_user(username: str, iban: str, bunq_api_key: str, bunq_user_id: int) -> int:
-    """Insert a new user identified by their bunq IBAN. Returns the new user's id."""
+def create_user(username: str, iban: str, bunq_api_key: str, bunq_user_id: int,
+                savings_iban: str | None = None, current_iban: str | None = None) -> int:
+    """Insert a new user with dual IBANs. Returns the new user's id."""
     with _conn() as con:
         cur = con.execute(
-            "INSERT INTO users (username, iban, bunq_api_key, bunq_user_id, created_at) VALUES (?,?,?,?,?)",
-            (username.strip(), iban.strip().upper(), bunq_api_key, bunq_user_id, _now()),
+            "INSERT INTO users (username, iban, savings_iban, current_iban, bunq_api_key, bunq_user_id, created_at) VALUES (?,?,?,?,?,?,?)",
+            (username.strip(), iban.strip().upper(),
+             savings_iban.strip().upper() if savings_iban else None,
+             current_iban.strip().upper() if current_iban else None,
+             bunq_api_key, bunq_user_id, _now()),
         )
         return cur.lastrowid
 
@@ -194,7 +202,7 @@ def get_user_by_id(user_id: int) -> dict | None:
 def list_users() -> list[dict]:
     with _conn() as con:
         rows = con.execute(
-            "SELECT id, username, iban, bunq_user_id, created_at FROM users ORDER BY created_at DESC"
+            "SELECT id, username, iban, savings_iban, current_iban, bunq_user_id, created_at FROM users ORDER BY created_at DESC"
         ).fetchall()
         return [dict(r) for r in rows]
 

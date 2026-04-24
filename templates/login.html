@@ -145,10 +145,10 @@
 
   {% if mode == 'register' %}
     <div class="section-title">Create your account</div>
-    <div class="section-sub">Enter a username — we'll create your bunq sandbox account and issue you an IBAN instantly</div>
+    <div class="section-sub">Pick a username — we'll create your bunq sandbox account with Savings &amp; Current IBANs automatically</div>
   {% else %}
     <div class="section-title">Welcome back</div>
-    <div class="section-sub">Enter your bunq IBAN to access your dashboard — no password needed</div>
+    <div class="section-sub">Enter your User ID to access your banking dashboard</div>
   {% endif %}
 
   {% if error %}
@@ -170,10 +170,9 @@
   <!-- ─── Login form ─── -->
   <form method="POST" action="/login" autocomplete="on">
     <div class="fgroup">
-      <label>Your IBAN</label>
-      <input name="iban" type="text" placeholder="NL76BUNQ2086318540" required
-             autocomplete="off" autofocus spellcheck="false"
-             style="font-family:var(--mono);letter-spacing:.5px;text-transform:uppercase"/>
+      <label>User ID</label>
+      <input name="username" type="text" placeholder="your_username" required
+             autocomplete="username" autofocus spellcheck="false"/>
     </div>
     <button class="btn" type="submit">→ Sign In</button>
   </form>
