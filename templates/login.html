@@ -145,10 +145,10 @@
 
   {% if mode == 'register' %}
     <div class="section-title">Create your account</div>
-    <div class="section-sub">Join ReceiptAI and connect to your bunq sandbox</div>
+    <div class="section-sub">Enter a username — we'll create your bunq sandbox account and issue you an IBAN instantly</div>
   {% else %}
     <div class="section-title">Welcome back</div>
-    <div class="section-sub">Sign in to access your banking dashboard</div>
+    <div class="section-sub">Enter your bunq IBAN to access your dashboard — no password needed</div>
   {% endif %}
 
   {% if error %}
@@ -161,49 +161,19 @@
     <div class="fgroup">
       <label>Username</label>
       <input name="username" type="text" placeholder="hackathon_user" required
-             autocomplete="username" minlength="3" maxlength="40"/>
+             autocomplete="username" minlength="3" maxlength="40" autofocus/>
     </div>
-    <div class="fgroup">
-      <label>Email</label>
-      <input name="email" type="email" placeholder="you@example.com" required
-             autocomplete="email"/>
-    </div>
-    <div class="fgroup">
-      <label>Password</label>
-      <div class="input-wrap">
-        <input name="password" id="pw" type="password" placeholder="Min 6 characters" required
-               autocomplete="new-password" oninput="checkStrength(this.value)"/>
-        <span class="input-icon" onclick="togglePw('pw')">👁</span>
-      </div>
-      <div class="strength-bar"><div class="strength-fill" id="str-fill"></div></div>
-      <div class="strength-label" id="str-lbl"></div>
-    </div>
-    <div class="fgroup">
-      <label>Confirm Password</label>
-      <div class="input-wrap">
-        <input name="confirm" id="pw2" type="password" placeholder="Repeat password" required
-               autocomplete="new-password"/>
-        <span class="input-icon" onclick="togglePw('pw2')">👁</span>
-      </div>
-    </div>
-    <button class="btn" type="submit">✦ Create Account</button>
+    <button class="btn" type="submit">✦ Create Account &amp; Get IBAN</button>
   </form>
 
   {% else %}
   <!-- ─── Login form ─── -->
   <form method="POST" action="/login" autocomplete="on">
     <div class="fgroup">
-      <label>Username</label>
-      <input name="username" type="text" placeholder="your_username" required
-             autocomplete="username" autofocus/>
-    </div>
-    <div class="fgroup">
-      <label>Password</label>
-      <div class="input-wrap">
-        <input name="password" id="pw" type="password" placeholder="••••••••" required
-               autocomplete="current-password"/>
-        <span class="input-icon" onclick="togglePw('pw')">👁</span>
-      </div>
+      <label>Your IBAN</label>
+      <input name="iban" type="text" placeholder="NL76BUNQ2086318540" required
+             autocomplete="off" autofocus spellcheck="false"
+             style="font-family:var(--mono);letter-spacing:.5px;text-transform:uppercase"/>
     </div>
     <button class="btn" type="submit">→ Sign In</button>
   </form>

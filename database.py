@@ -12,21 +12,34 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from werkzeug.security import check_password_hash, generate_password_hash
-
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "receiptai.db")
 
 
 def init_db() -> None:
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, migrating the users table if needed."""
     with _conn() as con:
+        # Migrate users table to IBAN-based schema if needed
+        cols = [row[1] for row in con.execute("PRAGMA table_info(users)").fetchall()]
+        if "iban" not in cols:
+            con.execute("DROP TABLE IF EXISTS users")
+            con.execute("""
+                CREATE TABLE users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username      TEXT    NOT NULL UNIQUE,
+                    iban          TEXT    NOT NULL UNIQUE,
+                    bunq_api_key  TEXT    NOT NULL,
+                    bunq_user_id  INTEGER NOT NULL,
+                    created_at    TEXT    NOT NULL
+                )
+            """)
         con.executescript("""
             CREATE TABLE IF NOT EXISTS users (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                username     TEXT    NOT NULL UNIQUE,
-                email        TEXT    NOT NULL UNIQUE,
-                password_hash TEXT   NOT NULL,
-                created_at   TEXT    NOT NULL
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT    NOT NULL UNIQUE,
+                iban          TEXT    NOT NULL UNIQUE,
+                bunq_api_key  TEXT    NOT NULL,
+                bunq_user_id  INTEGER NOT NULL,
+                created_at    TEXT    NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS receipts (
@@ -142,15 +155,14 @@ def list_xray_scans(limit: int = 20) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-# ── Users ─────────────────────────────────────────────────────────────────────
+# ── Users (IBAN-based, no password) ──────────────────────────────────────────
 
-def create_user(username: str, email: str, password: str) -> int:
-    """Hash password and insert a new user. Returns the new user's id."""
-    password_hash = generate_password_hash(password)
+def create_user(username: str, iban: str, bunq_api_key: str, bunq_user_id: int) -> int:
+    """Insert a new user identified by their bunq IBAN. Returns the new user's id."""
     with _conn() as con:
         cur = con.execute(
-            "INSERT INTO users (username, email, password_hash, created_at) VALUES (?,?,?,?)",
-            (username.strip(), email.strip().lower(), password_hash, _now()),
+            "INSERT INTO users (username, iban, bunq_api_key, bunq_user_id, created_at) VALUES (?,?,?,?,?)",
+            (username.strip(), iban.strip().upper(), bunq_api_key, bunq_user_id, _now()),
         )
         return cur.lastrowid
 
@@ -163,6 +175,14 @@ def get_user_by_username(username: str) -> dict | None:
         return dict(row) if row else None
 
 
+def get_user_by_iban(iban: str) -> dict | None:
+    with _conn() as con:
+        row = con.execute(
+            "SELECT * FROM users WHERE iban = ?", (iban.strip().upper(),)
+        ).fetchone()
+        return dict(row) if row else None
+
+
 def get_user_by_id(user_id: int) -> dict | None:
     with _conn() as con:
         row = con.execute(
@@ -171,18 +191,10 @@ def get_user_by_id(user_id: int) -> dict | None:
         return dict(row) if row else None
 
 
-def verify_user(username: str, password: str) -> dict | None:
-    """Return user dict if credentials are valid, else None."""
-    user = get_user_by_username(username)
-    if user and check_password_hash(user["password_hash"], password):
-        return user
-    return None
-
-
 def list_users() -> list[dict]:
     with _conn() as con:
         rows = con.execute(
-            "SELECT id, username, email, created_at FROM users ORDER BY created_at DESC"
+            "SELECT id, username, iban, bunq_user_id, created_at FROM users ORDER BY created_at DESC"
         ).fetchall()
         return [dict(r) for r in rows]
 

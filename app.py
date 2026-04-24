@@ -57,9 +57,11 @@ login_manager.login_message = ""               # suppress default message
 class User(UserMixin):
     """Thin wrapper around our DB user dict, satisfying flask-login."""
     def __init__(self, user_dict: dict):
-        self.id       = user_dict["id"]
-        self.username = user_dict["username"]
-        self.email    = user_dict["email"]
+        self.id           = user_dict["id"]
+        self.username     = user_dict["username"]
+        self.iban         = user_dict.get("iban", "")
+        self.bunq_api_key = user_dict.get("bunq_api_key", "")
+        self.bunq_user_id = user_dict.get("bunq_user_id")
 
 
 @login_manager.user_loader
@@ -92,10 +94,14 @@ db.init_db()
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _get_client() -> BunqClient:
-    api_key = os.getenv("BUNQ_API_KEY", "").strip()
+    """Return a BunqClient authenticated with the current user's bunq API key."""
+    api_key = current_user.bunq_api_key if current_user.is_authenticated else ""
+    if not api_key:
+        api_key = os.getenv("BUNQ_API_KEY", "").strip()
     if not api_key:
         api_key = BunqClient.create_sandbox_user()
-    client = BunqClient(api_key=api_key, sandbox=True)
+    context_file = f"bunq_context_{current_user.username}.json" if current_user.is_authenticated else "bunq_context.json"
+    client = BunqClient(api_key=api_key, sandbox=True, context_file=context_file)
     client.authenticate()
     return client
 
@@ -157,13 +163,12 @@ def login_page():
         return redirect(url_for("index"))
     error = None
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        user_row = db.verify_user(username, password)
+        iban = request.form.get("iban", "").strip().upper()
+        user_row = db.get_user_by_iban(iban)
         if user_row:
             login_user(User(user_row), remember=True)
             return redirect(url_for("index"))
-        error = "Invalid username or password."
+        error = "IBAN not found. Please register first."
     return render_template("login.html", error=error, mode="login")
 
 
@@ -174,22 +179,57 @@ def register_page():
     error = None
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        email    = request.form.get("email", "").strip()
-        password = request.form.get("password", "")
-        confirm  = request.form.get("confirm", "")
-        if not username or not email or not password:
-            error = "All fields are required."
-        elif len(password) < 6:
-            error = "Password must be at least 6 characters."
-        elif password != confirm:
-            error = "Passwords do not match."
+        if not username or len(username) < 3:
+            error = "Username must be at least 3 characters."
         elif db.get_user_by_username(username):
             error = "Username already taken."
         else:
-            user_id = db.create_user(username, email, password)
-            user_row = db.get_user_by_id(user_id)
-            login_user(User(user_row), remember=True)
-            return redirect(url_for("index"))
+            try:
+                # Create a fresh bunq sandbox user (mirrors 02_create_monetary_account.py)
+                api_key = BunqClient.create_sandbox_user()
+                context_file = f"bunq_context_{username}.json"
+                client = BunqClient(api_key=api_key, sandbox=True, context_file=context_file)
+                client.authenticate()
+
+                # Find IBAN from the default account bunq creates on registration
+                accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
+                iban = None
+                for item in accounts:
+                    acc = item.get("MonetaryAccountBank", {})
+                    if acc.get("status") == "ACTIVE":
+                        for alias in acc.get("alias", []):
+                            if alias.get("type") == "IBAN":
+                                iban = alias["value"]
+                                break
+                    if iban:
+                        break
+
+                # If no default account yet, create one (like 02_create_monetary_account.py)
+                if not iban:
+                    client.post(f"user/{client.user_id}/monetary-account-bank", {
+                        "currency": "EUR",
+                        "description": f"{username}'s Account",
+                    })
+                    accounts = client.get(f"user/{client.user_id}/monetary-account-bank")
+                    for item in accounts:
+                        acc = item.get("MonetaryAccountBank", {})
+                        if acc.get("status") == "ACTIVE":
+                            for alias in acc.get("alias", []):
+                                if alias.get("type") == "IBAN":
+                                    iban = alias["value"]
+                                    break
+                        if iban:
+                            break
+
+                if not iban:
+                    error = "Could not retrieve IBAN from bunq. Please try again."
+                else:
+                    uid = db.create_user(username, iban, api_key, client.user_id)
+                    user_row = db.get_user_by_id(uid)
+                    login_user(User(user_row), remember=True)
+                    return redirect(url_for("index"))
+            except Exception as e:
+                error = f"bunq error: {e}"
     return render_template("login.html", error=error, mode="register")
 
 
@@ -205,7 +245,7 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html", username=current_user.username)
+    return render_template("index.html", username=current_user.username, iban=current_user.iban)
 
 
 # ── Status ─────────────────────────────────────────────────────────────────────

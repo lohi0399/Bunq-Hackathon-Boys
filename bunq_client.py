@@ -27,10 +27,11 @@ CONTEXT_FILE = "bunq_context.json"
 
 
 class BunqClient:
-    def __init__(self, api_key: str, sandbox: bool = True):
+    def __init__(self, api_key: str, sandbox: bool = True, context_file: str | None = None):
         self.api_key = api_key
         self.sandbox = sandbox
         self.base_url = SANDBOX_BASE_URL if sandbox else PRODUCTION_BASE_URL
+        self._context_file = context_file or CONTEXT_FILE
 
         self.installation_token: str | None = None
         self.server_public_key: str | None = None
@@ -223,14 +224,14 @@ class BunqClient:
             "session_token": self.session_token,
             "user_id": self.user_id,
         }
-        with open(CONTEXT_FILE, "w") as f:
+        with open(self._context_file, "w") as f:
             json.dump(context, f, indent=2)
 
     def _load_context(self) -> bool:
-        if not os.path.exists(CONTEXT_FILE):
+        if not os.path.exists(self._context_file):
             return False
         try:
-            with open(CONTEXT_FILE) as f:
+            with open(self._context_file) as f:
                 ctx = json.load(f)
             if ctx.get("api_key") != self.api_key or ctx.get("sandbox") != self.sandbox:
                 return False
