@@ -181,7 +181,7 @@ def log_to_bunq():
         f"user/{bunq.user_id}/monetary-account/{account_id}/request-inquiry",
         {
             "amount_inquired": {"value": amount, "currency": currency},
-            "counterpart_alias": {"type": "EMAIL", "value": "sugardaddy@bunq.com"},
+            "counterparty_alias": {"type": "EMAIL", "value": "sugardaddy@bunq.com", "name": "Sugar Daddy"},
             "description": description,
             "allow_bunqme": False,
         },
