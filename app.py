@@ -842,17 +842,24 @@ def ar_bank_vision():
 
     # AI Prompt for AR Bank Vision
     prompt = (
-        "You are an AR object scanner. Look at this image.\n"
-        "Identify the main object/product/item visible and any price shown.\n"
-        "If no clear object, describe the scene briefly.\n\n"
-        f"USER BALANCE: €{total_balance:.2f} total (current €{current_balance:.2f} / savings €{savings_balance:.2f})\n"
-        f"HOURLY WAGE: €{HOURLY_WAGE_EUR:.2f} | MONTHLY SALARY: €{MONTHLY_SALARY_EUR:.2f}\n\n"
+        "You are an AR product scanner for consumer goods and retail items.\n"
+        "CRITICAL RULES:\n"
+        "1. If the image contains ONLY a human, person, face, body, or animal — respond ONLY with this exact JSON: "
+        '{\"item\":\"none\",\"brand\":null,\"category\":\"none\",\"price\":0,\"price_range\":null,\"can_afford\":false,'
+        '\"affordability_status\":\"no_price_found\",\"impact_on_balance\":\"No consumer product detected — aim at a product.\","'
+        '\"hours_of_work\":0,\"recommendation\":\"Point the camera at a consumer product or item.\",\"alternative\":null,\"long_term_impact\":\"N/A\",\"price_source\":null}\n'
+        "2. ONLY analyse consumer products, goods, items (electronics, food, clothing, appliances, books, toys, accessories, etc.).\n"
+        "3. Identify the main product. Extract any price shown. If no price visible, estimate a typical retail price in EUR.\n\n"
+        f"USER BALANCE: \u20ac{total_balance:.2f} total (current \u20ac{current_balance:.2f} / savings \u20ac{savings_balance:.2f})\n"
+        f"HOURLY WAGE: \u20ac{HOURLY_WAGE_EUR:.2f} | MONTHLY SALARY: \u20ac{MONTHLY_SALARY_EUR:.2f}\n\n"
         "Respond ONLY with compact JSON (no spaces, no markdown):\n"
-        '{"item":"<name>","price":<EUR float or 0>,"can_afford":<bool>,'
+        '{"item":"<full product name>","brand":<"brand name" or null>,"category":"<Electronics|Food|Clothing|Appliance|Book|Toy|Accessory|Other>",'
+        '"price":<EUR float or 0>,"price_range":<"e.g. \\u20ac10-15 typical retail" or null>,'
+        '"price_source":"<visible price tag|estimated retail price|online listing estimate|manufacturer MSRP>","can_afford":<bool>,'
         '"affordability_status":"comfortable|tight|impossible|no_price_found",'
         '"impact_on_balance":"<1 sentence>","hours_of_work":<float>,'
-        '"recommendation":"<1 sentence>","alternative":<"string" or null>,'
-        '"long_term_impact":"<1 sentence>"}'
+        '"recommendation":"<1 sentence about whether to buy>","alternative":<"cheaper/better alternative product name" or null>,'
+        '"long_term_impact":"<1 sentence about opportunity cost>"}'
     )
 
     try:
@@ -887,7 +894,8 @@ def ar_bank_vision():
 
     # Enrich with additional context
     price = float(ar_data.get("price", 0))
-    ar_data["balance_after"] = total_balance - price if price > 0 else total_balance
+    balance_after = total_balance - price if price > 0 else total_balance
+    ar_data["balance_after"] = balance_after
     ar_data["percent_of_balance"] = round((price / total_balance * 100), 1) if total_balance > 0 and price > 0 else 0
     ar_data["sp500_future"] = round(price * SP500_10Y_MULTIPLIER, 2) if price > 0 else 0
     ar_data["user_balance"] = {
@@ -895,6 +903,18 @@ def ar_bank_vision():
         "current": current_balance,
         "savings": savings_balance,
     }
+
+    # Override AI affordability with hard math — never trust AI's opinion over real balance
+    if price > 0:
+        if total_balance <= 0 or total_balance < price:
+            ar_data["affordability_status"] = "impossible"
+            ar_data["can_afford"] = False
+        elif (total_balance - price) < (total_balance * 0.1):  # less than 10% left
+            ar_data["affordability_status"] = "tight"
+            ar_data["can_afford"] = True
+        else:
+            ar_data["affordability_status"] = "comfortable"
+            ar_data["can_afford"] = True
 
     return jsonify(ar_data)
 

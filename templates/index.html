@@ -343,12 +343,90 @@
     ::-webkit-scrollbar{width:5px;height:5px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:3px}
+
+    /* ═══ MOBILE ═══ */
+    .mob-menu-btn{display:none;background:none;border:1px solid var(--border);
+      color:var(--text2);border-radius:8px;width:34px;height:34px;
+      align-items:center;justify-content:center;font-size:16px;
+      cursor:pointer;flex-shrink:0;transition:all .15s}
+    .mob-menu-btn:hover{border-color:var(--neon);color:var(--neon)}
+    .nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+      z-index:99}
+    .nav-overlay.open{display:block}
+
+    @media(max-width:768px){
+      /* Allow page to scroll naturally */
+      body{overflow:auto}
+      .shell{height:auto;min-height:calc(100vh - 58px);flex-direction:column}
+
+      /* Hamburger visible */
+      .mob-menu-btn{display:flex}
+
+      /* Hide desktop toggle inside sidebar on mobile */
+      .nav-toggle{display:none}
+
+      /* Sidebar becomes a slide-in drawer */
+      nav{position:fixed;top:58px;left:0;bottom:0;z-index:200;
+        width:260px!important;padding:14px 10px!important;
+        transform:translateX(-100%);transition:transform .25s ease;
+        box-shadow:4px 0 24px rgba(0,0,0,.5)}
+      nav.mob-open{transform:translateX(0)}
+
+      /* Overlay only covers content area (right of nav) — never intercepts nav taps */
+      .nav-overlay{z-index:150}
+      .nav-overlay.open{left:260px}
+
+      /* All labels visible in drawer */
+      nav .nav-label,nav .nav-section,nav .nav-badge{display:block!important}
+      nav .nav-item{justify-content:flex-start!important;padding:9px 10px!important;
+        width:100%!important;margin:0!important}
+      nav .nav-icon{font-size:14px!important;width:18px!important}
+
+      /* Content full width */
+      .content{padding:16px 14px;width:100%}
+
+      /* Tighter header on mobile */
+      header{padding:0 12px;gap:8px}
+      #hdr-savings,#hdr-current{display:none}
+      .status-chip{display:none}
+
+      /* Cards full width */
+      .g2,.g3{grid-template-columns:1fr!important}
+      .frow{grid-template-columns:1fr!important}
+
+      /* Stats row scrolls horizontally */
+      .g3.stats-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:4px}
+      .g3.stats-row .stat{min-width:140px;flex-shrink:0}
+
+      /* Page title smaller */
+      .page-title{font-size:17px}
+      .page-header{margin-bottom:14px}
+
+      /* Reduce card padding */
+      .card{padding:14px}
+
+      /* Toast above bottom safe area */
+      #toast{bottom:16px;font-size:12px;max-width:90vw;white-space:normal;text-align:center}
+
+      /* Account balances scale down */
+      .acc-balance{font-size:20px}
+
+      /* IBAN truncation */
+      .acc-iban{font-size:9px}
+
+      /* Table: allow horizontal scroll */
+      .tbl-wrap{-webkit-overflow-scrolling:touch}
+
+      /* Buttons full width on mobile forms */
+      .btn-full-mob{width:100%}
+    }
   </style>
 </head>
 <body>
 
 <!-- ══ HEADER ══ -->
 <header>
+  <button class="mob-menu-btn" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
   <div class="logo-mark">b</div>
   <span class="logo-text">ReceiptAI</span>
   <div class="header-right">
@@ -361,6 +439,9 @@
     <a href="/logout" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--danger);text-decoration:none;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:6px;padding:3px 8px">⏻ Out</a>
   </div>
 </header>
+
+<!-- Mobile nav overlay (tap to close) -->
+<div class="nav-overlay" id="nav-overlay" onclick="closeMobileNav()"></div>
 
 <div class="shell">
 
@@ -442,6 +523,7 @@
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="nav('receipt-ai',navBtn('receipt-ai'))">🧾 Scan</button>
           <button class="btn btn-blue" onclick="nav('xray',navBtn('xray'))">🔬 X-Ray</button>
+          <button class="btn" style="background:rgba(255,120,50,.1);color:#ff7832;border-color:rgba(255,120,50,.3)" onclick="nav('ar-vision',navBtn('ar-vision'))">🎯 AR Cam</button>
         </div>
       </div>
       <div class="stat"><div class="stat-lbl">Banking</div>
@@ -917,6 +999,8 @@
 <script>
 // ═══ NAVIGATION ══════════════════════════════════════════════════════════════
 function nav(id, btn) {
+  // Close mobile drawer when navigating
+  closeMobileNav();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
@@ -929,6 +1013,17 @@ function nav(id, btn) {
   if (id === 'ar-vision') loadArVision();
 }
 function navBtn(id) { return document.querySelector(`[data-page="${id}"]`); }
+
+function toggleMobileNav() {
+  const nav = document.getElementById('sidebar');
+  const overlay = document.getElementById('nav-overlay');
+  const open = nav.classList.toggle('mob-open');
+  overlay.classList.toggle('open', open);
+}
+function closeMobileNav() {
+  document.getElementById('sidebar').classList.remove('mob-open');
+  document.getElementById('nav-overlay').classList.remove('open');
+}
 
 function toggleSidebar() {
   const nav = document.getElementById('sidebar');
@@ -1532,6 +1627,17 @@ async function arAnalyzeFile(input) {
 }
 
 function renderArOverlay(d) {
+  // If AI detected a human/animal instead of a product, show a friendly message
+  if (!d.item || d.item === 'none') {
+    document.getElementById('ar-live-result-wrap').innerHTML =
+      '<div class="card" style="border:1px solid var(--border);padding:16px;text-align:center">' +
+        '<div style="font-size:32px;margin-bottom:8px">🎯</div>' +
+        '<div style="font-weight:700;color:var(--text2)">No product detected</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:6px">Point the camera at a consumer product to get price and financial insights.</div>' +
+      '</div>';
+    return;
+  }
+
   const status = d.affordability_status || 'no_price_found';
   const STATUS = {
     comfortable:    { color:'var(--neon)',   icon:'✅', text:'Comfortably affordable' },
@@ -1540,7 +1646,7 @@ function renderArOverlay(d) {
     no_price_found: { color:'var(--text3)',  icon:'🔍', text:'No price detected' },
   };
   const s = STATUS[status] || STATUS.no_price_found;
-  const priceStr = d.price > 0 ? '€' + Number(d.price).toFixed(2) : '—';
+  const priceStr = d.price > 0 ? '€' + Number(d.price).toFixed(2) : (d.price_range || '—');
   const balanceAfter = d.balance_after || 0;
 
   const wrap = document.getElementById('ar-live-result-wrap');
@@ -1548,12 +1654,21 @@ function renderArOverlay(d) {
     '<div class="card ar-result-enter" style="border:2px solid ' + s.color + ';padding:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:2px">Detected</div>' +
-          '<div style="font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.item||'Unknown') + '</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;margin-bottom:3px">' +
+            (d.category && d.category !== 'none' ? '<span style="font-size:9px;text-transform:uppercase;letter-spacing:1px;background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.2);border-radius:4px;padding:1px 5px">' + esc(d.category) + '</span>' : '') +
+            (d.brand ? '<span style="font-size:9px;text-transform:uppercase;letter-spacing:1px;background:rgba(79,140,255,.1);color:var(--blue);border:1px solid rgba(79,140,255,.2);border-radius:4px;padding:1px 5px">' + esc(d.brand) + '</span>' : '') +
+          '</div>' +
+          '<div style="font-size:16px;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis">' + esc(d.item||'Unknown') + '</div>' +
         '</div>' +
         '<div style="text-align:right;margin-left:12px;flex-shrink:0">' +
-          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:2px">Price</div>' +
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:2px">' + (d.price > 0 ? 'Price' : 'Est. Range') + '</div>' +
           '<div style="font-size:20px;font-weight:900;color:var(--purple);font-family:JetBrains Mono">' + priceStr + '</div>' +
+          (function(){
+            const q = encodeURIComponent((d.brand ? d.brand + ' ' : '') + (d.item || ''));
+            const shopUrl = 'https://www.google.com/search?tbm=shop&q=' + q;
+            const src = d.price_source || 'estimated retail price';
+            return '<a href="' + shopUrl + '" target="_blank" rel="noopener" style="font-size:9px;color:var(--blue);margin-top:3px;display:block;text-decoration:underline;font-style:italic;word-break:break-all">' + esc(src) + ' ↗</a>';
+          })() +
         '</div>' +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.3);border:1px solid ' + s.color + ';border-radius:8px;padding:10px 14px;margin-bottom:12px">' +
