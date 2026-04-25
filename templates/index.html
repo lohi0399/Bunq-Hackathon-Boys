@@ -244,6 +244,11 @@
       background:linear-gradient(90deg,transparent,var(--neon),transparent);
       animation:scan-anim 1.6s linear infinite;display:none}
     @keyframes scan-anim{from{transform:translateY(0)}to{transform:translateY(260px)}}
+    @keyframes scanline{0%{top:0%}100%{top:100%}}
+    @keyframes ar-fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .ar-result-enter{animation:ar-fade-in .35s ease both}
+    /* AR grid: single column on small screens */
+    @media(max-width:700px){#ar-grid{grid-template-columns:1fr!important}}
     .sk{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);
       background-size:200% 100%;border-radius:6px;
       animation:shimmer 1.2s ease infinite}
@@ -754,25 +759,89 @@
   <div class="page" id="page-ar-vision">
     <div class="page-header">
       <div class="page-title">🎯 AR Bank Vision</div>
-      <div class="page-sub">Point your camera at anything — get instant financial guidance</div>
+      <div class="page-sub">Live camera — AI scans what you see every few seconds</div>
     </div>
-    <div class="card">
-      <div class="form-group">
-        <label class="label">How it works:</label>
-        <div style="background:rgba(79,140,255,.05);border:1px solid rgba(79,140,255,.2);border-radius:8px;padding:12px;margin-bottom:16px">
-          <p style="margin:0 0 8px 0;color:var(--blue)">📸 Point at: menu, product tag, invoice, shopping cart, apartment listing, travel poster, etc.</p>
-          <p style="margin:0;color:var(--text2)">💡 Get: affordability check, account impact, alternatives, long-term perspective</p>
+
+    <!-- AR View: video + overlay side-by-side on desktop, stacked on mobile -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start" id="ar-grid">
+
+      <!-- LEFT: Video Feed -->
+      <div class="card" style="padding:0;overflow:hidden;position:relative">
+        <!-- Mode Bar -->
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--border)">
+          <button id="ar-btn-live" onclick="startLiveAR()"
+            style="flex:1;padding:12px;background:rgba(0,255,179,.08);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)">
+            📹 Live AR
+          </button>
+          <button id="ar-btn-photo" onclick="stopLiveAR()"
+            style="flex:1;padding:12px;background:none;border:none;color:var(--text2);font-weight:600;font-size:13px;cursor:pointer">
+            📸 Photo
+          </button>
         </div>
 
-        <input type="file" id="ar-file" accept="image/*" style="display:none"/>
-        <input type="file" id="ar-cam" accept="image/*" style="display:none"/>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="camera-btn" onclick="document.getElementById('ar-cam').click()">🎯 Scan Now</button>
-          <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('ar-file').click()">📁 Upload Photo</button>
+        <!-- Video feed -->
+        <div id="ar-cam-wrap" style="position:relative;background:#000;min-height:200px;display:flex;align-items:center;justify-content:center">
+          <video id="ar-video" autoplay playsinline muted
+            style="width:100%;display:none;max-height:380px;object-fit:cover"></video>
+          <canvas id="ar-canvas" style="display:none"></canvas>
+
+          <!-- Idle placeholder -->
+          <div id="ar-placeholder" style="padding:40px;text-align:center;color:var(--text3)">
+            <div style="font-size:48px;margin-bottom:12px">📷</div>
+            <div style="font-size:14px">Click <strong style="color:var(--neon)">Live AR</strong> to start your camera</div>
+            <div style="font-size:12px;margin-top:6px">Or use Photo mode to upload an image</div>
+          </div>
+
+          <!-- Animated scan line (shown during active scan) -->
+          <div id="ar-scanline" style="display:none;position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--neon),transparent);top:0;animation:scanline 2s linear infinite;pointer-events:none"></div>
+
+          <!-- LIVE badge -->
+          <div id="ar-live-badge" style="display:none;position:absolute;top:10px;left:10px;background:rgba(244,63,94,.9);color:white;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:1px;display:none;align-items:center;gap:6px">
+            <span style="width:7px;height:7px;background:white;border-radius:50%;display:inline-block;animation:pulse 1s infinite"></span>
+            LIVE
+          </div>
+
+          <!-- Countdown ring -->
+          <div id="ar-countdown-wrap" style="display:none;position:absolute;top:10px;right:10px">
+            <svg width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(0,255,179,.2)" stroke-width="3"/>
+              <circle id="ar-countdown-ring" cx="18" cy="18" r="15" fill="none"
+                stroke="var(--neon)" stroke-width="3"
+                stroke-dasharray="94.2" stroke-dashoffset="0"
+                stroke-linecap="round" transform="rotate(-90 18 18)"
+                style="transition:stroke-dashoffset 1s linear"/>
+            </svg>
+            <div id="ar-countdown-num" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:700;color:var(--neon);font-family:JetBrains Mono"></div>
+          </div>
+
+          <!-- Stop button (shown when live) -->
+          <button id="ar-stop-btn" onclick="stopLiveAR()" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(244,63,94,.85);border:none;color:white;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+            ✕ Stop
+          </button>
         </div>
+
+        <!-- Photo mode fallback buttons (hidden during live) -->
+        <div id="ar-photo-mode" style="padding:16px;display:flex;gap:8px">
+          <input type="file" id="ar-file" accept="image/*" style="display:none" onchange="arAnalyzeFile(this)"/>
+          <button class="camera-btn" style="flex:1" onclick="document.getElementById('ar-file').click()">📁 Upload Photo</button>
+          <button class="camera-btn" style="flex:1;background:rgba(0,255,179,.08);border-color:var(--border-glow);color:var(--neon)" onclick="arCaptureNow()">⚡ Scan Now</button>
+        </div>
+        <div id="ar-scan-status" style="padding:0 16px 14px;font-size:12px;color:var(--text3);min-height:18px"></div>
       </div>
-      <div id="ar-result" style="display:none;margin-top:20px"></div>
-    </div>
+
+      <!-- RIGHT: Live Financial Overlay -->
+      <div id="ar-overlay-panel" style="display:flex;flex-direction:column;gap:12px">
+        <!-- Waiting state -->
+        <div id="ar-waiting" class="card" style="text-align:center;padding:32px;color:var(--text3)">
+          <div style="font-size:40px;margin-bottom:10px">🎯</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text2)">Start Live AR</div>
+          <div style="font-size:12px;margin-top:6px">Point at anything with a price tag<br>and watch the AI break it down</div>
+        </div>
+        <!-- Results injected here by renderArOverlay() -->
+        <div id="ar-live-result-wrap"></div>
+      </div>
+
+    </div><!-- /ar-grid -->
   </div>
 
   <!-- ─── SPENDING INSIGHTS ─── -->
@@ -1233,236 +1302,231 @@ async function loadHistXray() {
   } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
 }
 
-// ═══ AR BANK VISION ══════════════════════════════════════════════════════════
+// ═══ AR BANK VISION — Live Video + Auto-Scan ═════════════════════════════════
+let arStream = null;          // MediaStream from getUserMedia
+let arInterval = null;        // setInterval handle for auto-scan
+let arScanning = false;       // guard — prevent overlapping requests
+let arCountdownVal = 0;       // countdown timer value
+let arCountdownTimer = null;  // setInterval for countdown ring
+
+const AR_INTERVAL_SEC = 10;   // seconds between auto-scans
+
 function loadArVision() {
-  // Set up file input listeners
-  const arCam = document.getElementById('ar-cam');
-  const arFile = document.getElementById('ar-file');
-  
-  arCam.onchange = () => arBankVision(arCam);
-  arFile.onchange = () => arBankVision(arFile);
+  const fileIn = document.getElementById('ar-file');
+  if (fileIn) fileIn.onchange = () => arAnalyzeFile(fileIn);
 }
 
-async function arBankVision(input) {
+async function startLiveAR() {
+  if (arStream) return;
+  try {
+    const constraints = {
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    };
+    arStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch(err) {
+    toast('Camera access denied: ' + err.message, 'err');
+    return;
+  }
+
+  const video = document.getElementById('ar-video');
+  video.srcObject = arStream;
+  video.style.display = 'block';
+
+  document.getElementById('ar-placeholder').style.display    = 'none';
+  document.getElementById('ar-scanline').style.display       = 'block';
+  document.getElementById('ar-live-badge').style.display     = 'flex';
+  document.getElementById('ar-countdown-wrap').style.display = 'block';
+  document.getElementById('ar-stop-btn').style.display       = 'block';
+  document.getElementById('ar-photo-mode').style.display     = 'none';
+  document.getElementById('ar-waiting').style.display        = 'none';
+  document.getElementById('ar-scan-status').textContent      = '';
+
+  document.getElementById('ar-btn-live').style.cssText  = 'flex:1;padding:12px;background:rgba(0,255,179,.15);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)';
+  document.getElementById('ar-btn-photo').style.cssText = 'flex:1;padding:12px;background:none;border:none;color:var(--text3);font-weight:600;font-size:13px;cursor:pointer';
+
+  toast('📹 Live AR started — scanning every ' + AR_INTERVAL_SEC + 's', 'ok');
+  arScanFrame();
+  arStartCountdown();
+  arInterval = setInterval(() => { arScanFrame(); arStartCountdown(); }, AR_INTERVAL_SEC * 1000);
+}
+
+function stopLiveAR() {
+  if (arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
+  clearInterval(arInterval); arInterval = null;
+  clearInterval(arCountdownTimer); arCountdownTimer = null;
+
+  const video = document.getElementById('ar-video');
+  video.srcObject = null;
+  video.style.display = 'none';
+
+  document.getElementById('ar-placeholder').style.display    = 'block';
+  document.getElementById('ar-scanline').style.display       = 'none';
+  document.getElementById('ar-live-badge').style.display     = 'none';
+  document.getElementById('ar-countdown-wrap').style.display = 'none';
+  document.getElementById('ar-stop-btn').style.display       = 'none';
+  document.getElementById('ar-photo-mode').style.display     = 'flex';
+  document.getElementById('ar-scan-status').textContent      = '';
+
+  document.getElementById('ar-btn-live').style.cssText  = 'flex:1;padding:12px;background:rgba(0,255,179,.08);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)';
+  document.getElementById('ar-btn-photo').style.cssText = 'flex:1;padding:12px;background:rgba(79,140,255,.08);border:none;color:var(--blue);font-weight:700;font-size:13px;cursor:pointer';
+}
+
+function arStartCountdown() {
+  clearInterval(arCountdownTimer);
+  arCountdownVal = AR_INTERVAL_SEC;
+  const ring = document.getElementById('ar-countdown-ring');
+  const num  = document.getElementById('ar-countdown-num');
+  const circumference = 94.2;
+  ring.style.strokeDashoffset = '0';
+  num.textContent = arCountdownVal;
+  arCountdownTimer = setInterval(() => {
+    arCountdownVal--;
+    num.textContent = Math.max(0, arCountdownVal);
+    const offset = circumference * (1 - arCountdownVal / AR_INTERVAL_SEC);
+    ring.style.strokeDashoffset = offset;
+    if (arCountdownVal <= 0) clearInterval(arCountdownTimer);
+  }, 1000);
+}
+
+async function arCaptureNow() {
+  if (!arStream) { await startLiveAR(); return; }
+  clearInterval(arInterval);
+  clearInterval(arCountdownTimer);
+  arScanFrame();
+  arStartCountdown();
+  arInterval = setInterval(() => { arScanFrame(); arStartCountdown(); }, AR_INTERVAL_SEC * 1000);
+}
+
+async function arScanFrame() {
+  if (arScanning) return;
+  const video = document.getElementById('ar-video');
+  if (!video || video.readyState < 2) return;
+
+  arScanning = true;
+  document.getElementById('ar-scan-status').innerHTML =
+    '<span style="color:var(--neon)">⚡ Analyzing...</span>';
+
+  const canvas = document.getElementById('ar-canvas');
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 360;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) { arScanning = false; return; }
+    try {
+      const fd = new FormData();
+      fd.append('image', blob, 'frame.jpg');
+      const r = await fetch('/api/ar-vision', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Analysis failed');
+      renderArOverlay(d);
+      document.getElementById('ar-scan-status').innerHTML =
+        '<span style="color:var(--text3)">Last scan: ' + new Date().toLocaleTimeString() + '</span>';
+    } catch(e) {
+      document.getElementById('ar-scan-status').innerHTML =
+        '<span style="color:var(--danger)">⚠ ' + esc(e.message) + '</span>';
+    } finally {
+      arScanning = false;
+    }
+  }, 'image/jpeg', 0.85);
+}
+
+async function arAnalyzeFile(input) {
   if (!input.files || !input.files[0]) return;
-  
-  const resultDiv = document.getElementById('ar-result');
-  resultDiv.style.display = 'block';
-  resultDiv.innerHTML = `
-    <div style="text-align:center;padding:40px">
-      <div class="spin" style="width:48px;height:48px;border-width:4px;margin:0 auto 16px"></div>
-      <div style="color:var(--neon);font-weight:600;font-size:16px">Analyzing your view...</div>
-      <div style="color:var(--text3);font-size:13px;margin-top:8px">AI is checking affordability & impact</div>
-    </div>`;
-  
+  document.getElementById('ar-scan-status').innerHTML =
+    '<span style="color:var(--neon)">⚡ Analyzing photo...</span>';
+  document.getElementById('ar-waiting').style.display = 'none';
+
   const fd = new FormData();
   fd.append('image', input.files[0]);
-  
   try {
     const r = await fetch('/api/ar-vision', { method: 'POST', body: fd });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Analysis failed');
-    
-    renderArVision(d);
-    toast('AR Bank Vision complete! 🎯', 'ok');
-  } catch (e) {
-    resultDiv.innerHTML = `
-      <div style="background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.3);border-radius:8px;padding:16px">
-        <div style="color:var(--danger);font-weight:600;margin-bottom:4px">❌ Analysis Failed</div>
-        <div style="color:var(--text3);font-size:13px">${esc(e.message)}</div>
-      </div>`;
-    toast(e.message, 'err');
+    renderArOverlay(d);
+    document.getElementById('ar-scan-status').innerHTML =
+      '<span style="color:var(--text3)">Analyzed at ' + new Date().toLocaleTimeString() + '</span>';
+  } catch(e) {
+    document.getElementById('ar-scan-status').innerHTML =
+      '<span style="color:var(--danger)">⚠ ' + esc(e.message) + '</span>';
   }
-  
   input.value = '';
 }
 
-function renderArVision(d) {
-  const canAfford = d.can_afford;
+function renderArOverlay(d) {
   const status = d.affordability_status || 'no_price_found';
-  
-  let statusColor = 'var(--text3)';
-  let statusIcon = '❓';
-  let statusText = 'No price detected';
-  
-  if (status === 'comfortable') {
-    statusColor = 'var(--neon)';
-    statusIcon = '✅';
-    statusText = 'Comfortably affordable';
-  } else if (status === 'tight') {
-    statusColor = 'var(--amber)';
-    statusIcon = '⚠️';
-    statusText = 'You can afford it, but it\'s tight';
-  } else if (status === 'impossible') {
-    statusColor = 'var(--danger)';
-    statusIcon = '❌';
-    statusText = 'Beyond your current budget';
-  }
-  
-  const priceStr = d.price > 0 ? `€${Number(d.price).toFixed(2)}` : 'Unknown';
+  const STATUS = {
+    comfortable:    { color:'var(--neon)',   icon:'✅', text:'Comfortably affordable' },
+    tight:          { color:'var(--amber)',  icon:'⚠️', text:'Affordable but tight' },
+    impossible:     { color:'var(--danger)', icon:'❌', text:'Beyond your budget' },
+    no_price_found: { color:'var(--text3)',  icon:'🔍', text:'No price detected' },
+  };
+  const s = STATUS[status] || STATUS.no_price_found;
+  const priceStr = d.price > 0 ? '€' + Number(d.price).toFixed(2) : '—';
   const balanceAfter = d.balance_after || 0;
-  const percentOfBalance = d.percent_of_balance || 0;
-  
-  let html = `
-    <div style="background:linear-gradient(135deg,rgba(0,255,179,.08),rgba(79,140,255,.08));border:2px solid var(--border-glow);border-radius:12px;padding:20px">
-      
-      <!-- Item & Price -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
-        <div>
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">You're looking at</div>
-          <div style="font-size:18px;font-weight:700;color:var(--text)">${esc(d.item || 'Unknown item')}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Price</div>
-          <div style="font-size:20px;font-weight:800;color:var(--purple);font-family:JetBrains Mono">${priceStr}</div>
-        </div>
-      </div>
-      
-      <!-- Affordability Status -->
-      <div style="background:rgba(0,0,0,.3);border:1px solid ${statusColor};border-radius:8px;padding:16px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="font-size:32px">${statusIcon}</div>
-          <div style="flex:1">
-            <div style="font-weight:700;font-size:15px;color:${statusColor};margin-bottom:4px">${statusText}</div>
-            <div style="font-size:12px;color:var(--text2)">${esc(d.impact_on_balance || '')}</div>
-          </div>
-        </div>
-      </div>`;
-  
-  if (d.price > 0) {
-    html += `
-      <!-- Financial Metrics -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Hours Work</div>
-          <div style="font-size:16px;font-weight:700;color:var(--amber);font-family:JetBrains Mono">${Number(d.hours_of_work||0).toFixed(1)}h</div>
-        </div>
-        <div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Balance After</div>
-          <div style="font-size:16px;font-weight:700;color:${balanceAfter > 0 ? 'var(--neon)' : 'var(--danger)'};font-family:JetBrains Mono">€${Number(balanceAfter).toFixed(0)}</div>
-        </div>
-        <div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">% of Balance</div>
-          <div style="font-size:16px;font-weight:700;color:var(--pink);font-family:JetBrains Mono">${Number(percentOfBalance).toFixed(1)}%</div>
-        </div>
-      </div>
-      
-      <!-- Long-term Impact -->
-      <div style="background:rgba(79,140,255,.05);border:1px solid rgba(79,140,255,.2);border-radius:8px;padding:12px;margin-bottom:12px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:6px">💡 10-Year Perspective</div>
-        <div style="font-size:13px;color:var(--text2)">Invested in S&P 500: <span style="color:var(--neon);font-weight:700;font-family:JetBrains Mono">€${Number(d.sp500_future||0).toFixed(0)}</span> in 10 years</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:4px">${esc(d.long_term_impact || '')}</div>
-      </div>`;
-  }
-  
-  html += `
-      <!-- AI Recommendation -->
-      <div style="background:rgba(0,255,179,.05);border:1px solid var(--border-glow);border-radius:8px;padding:12px;margin-bottom:12px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--neon);margin-bottom:6px">🎯 Recommendation</div>
-        <div style="font-size:14px;color:var(--text);line-height:1.6">${esc(d.recommendation || 'Make an informed decision!')}</div>
-      </div>`;
-  
-  if (d.alternative) {
-    html += `
-      <!-- Alternative -->
-      <div style="background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:12px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--purple);margin-bottom:6px">💡 Smarter Alternative</div>
-        <div style="font-size:13px;color:var(--text2)">${esc(d.alternative)}</div>
-      </div>`;
-  }
-  
-  html += `
-    </div>`;
-  
-  document.getElementById('ar-result').innerHTML = html;
+
+  const wrap = document.getElementById('ar-live-result-wrap');
+  wrap.innerHTML =
+    '<div class="card ar-result-enter" style="border:2px solid ' + s.color + ';padding:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:2px">Detected</div>' +
+          '<div style="font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.item||'Unknown') + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;margin-left:12px;flex-shrink:0">' +
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:2px">Price</div>' +
+          '<div style="font-size:20px;font-weight:900;color:var(--purple);font-family:JetBrains Mono">' + priceStr + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.3);border:1px solid ' + s.color + ';border-radius:8px;padding:10px 14px;margin-bottom:12px">' +
+        '<span style="font-size:22px">' + s.icon + '</span>' +
+        '<div>' +
+          '<div style="font-weight:700;font-size:13px;color:' + s.color + '">' + s.text + '</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + esc(d.impact_on_balance||'') + '</div>' +
+        '</div>' +
+      '</div>' +
+      (d.price > 0 ?
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">' +
+          '<div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">' +
+            '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:3px">Work Hours</div>' +
+            '<div style="font-size:15px;font-weight:700;color:var(--amber);font-family:JetBrains Mono">' + Number(d.hours_of_work||0).toFixed(1) + 'h</div>' +
+          '</div>' +
+          '<div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">' +
+            '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:3px">Balance After</div>' +
+            '<div style="font-size:15px;font-weight:700;color:' + (balanceAfter>0?'var(--neon)':'var(--danger)') + ';font-family:JetBrains Mono">€' + Number(balanceAfter).toFixed(0) + '</div>' +
+          '</div>' +
+          '<div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">' +
+            '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:3px">10Y S&amp;P</div>' +
+            '<div style="font-size:15px;font-weight:700;color:var(--neon);font-family:JetBrains Mono">€' + Number(d.sp500_future||0).toFixed(0) + '</div>' +
+          '</div>' +
+        '</div>'
+      : '') +
+      '<div style="background:rgba(0,255,179,.04);border:1px solid var(--border-glow);border-radius:6px;padding:10px;margin-bottom:' + (d.alternative?'10px':'0') + '">' +
+        '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--neon);margin-bottom:4px">🎯 AI Advice</div>' +
+        '<div style="font-size:12px;color:var(--text);line-height:1.6">' + esc(d.recommendation||'') + '</div>' +
+      '</div>' +
+      (d.alternative ?
+        '<div style="background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.25);border-radius:6px;padding:10px">' +
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--purple);margin-bottom:4px">💡 Alternative</div>' +
+          '<div style="font-size:12px;color:var(--text2)">' + esc(d.alternative) + '</div>' +
+        '</div>'
+      : '') +
+    '</div>' +
+    (d.long_term_impact ?
+      '<div class="card ar-result-enter" style="padding:12px;border-color:rgba(79,140,255,.25)">' +
+        '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:4px">📈 Long-term view</div>' +
+        '<div style="font-size:12px;color:var(--text2)">' + esc(d.long_term_impact) + '</div>' +
+      '</div>'
+    : '');
 }
 
-// ═══ SPENDING INSIGHTS ═══════════════════════════════════════════════════════
-async function loadInsights() {
-  const el = document.getElementById('insights-body');
-  el.innerHTML = '<div style="text-align:center;padding:40px"><div class="spin" style="width:48px;height:48px;border-width:4px;margin:0 auto 16px"></div><div style="color:var(--text2)">Loading insights...</div></div>';
-  
-  try {
-    const data = await api('/api/insights');
-    
-    if (!data.categories || data.categories.length === 0) {
-      el.innerHTML = `
-        <div class="empty">
-          <div class="empty-icon">📊</div>
-          <div style="margin-top:12px;color:var(--text3)">No spending data for this month yet</div>
-          <div style="margin-top:8px;color:var(--text3);font-size:13px">Make some transactions to see categorized insights!</div>
-        </div>`;
-      return;
-    }
-    
-    const total = data.total || 0;
-    const currency = data.currency || 'EUR';
-    
-    // Generate category breakdown
-    let html = `
-      <div style="margin-bottom:24px">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px">
-          <div>
-            <div style="font-size:13px;color:var(--text3);margin-bottom:4px">Total Spending This Month</div>
-            <div style="font-size:32px;font-weight:800;color:var(--purple);font-family:JetBrains Mono">€${Number(total).toFixed(2)}</div>
-          </div>
-          <div style="font-size:12px;color:var(--text3)">
-            ${esc(data.period?.start?.slice(0,10) || '')} — ${esc(data.period?.end?.slice(0,10) || '')}
-          </div>
-        </div>
-      </div>
-      
-      <div style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">📊 Category Breakdown</div>
-      </div>
-      
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th style="text-align:center">Transactions</th>
-              <th style="text-align:right">Amount</th>
-              <th style="text-align:right">% of Total</th>
-            </tr>
-          </thead>
-          <tbody>`;
-    
-    data.categories.forEach(cat => {
-      const percent = total > 0 ? ((cat.amount / total) * 100).toFixed(1) : 0;
-      const barWidth = percent;
-      
-      html += `
-        <tr>
-          <td style="font-weight:600">${esc(cat.category)}</td>
-          <td style="text-align:center;font-family:JetBrains Mono;color:var(--text3)">${cat.transactions}</td>
-          <td style="text-align:right;font-family:JetBrains Mono;color:var(--purple);font-weight:600">€${Number(cat.amount).toFixed(2)}</td>
-          <td style="text-align:right">
-            <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
-              <div style="flex:0 0 60px;height:6px;background:rgba(168,85,247,.1);border-radius:3px;overflow:hidden">
-                <div style="height:100%;background:var(--purple);width:${barWidth}%;transition:width 0.3s"></div>
-              </div>
-              <span style="font-family:JetBrains Mono;color:var(--pink);font-weight:600;font-size:12px">${percent}%</span>
-            </div>
-          </td>
-        </tr>`;
-    });
-    
-    html += `
-          </tbody>
-        </table>
-      </div>`;
-    
-    el.innerHTML = html;
-    
-  } catch (e) {
-    el.innerHTML = `
-      <div style="background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.3);border-radius:8px;padding:16px;text-align:center">
-        <div style="color:var(--danger);font-weight:600;margin-bottom:4px">❌ Failed to load insights</div>
-        <div style="color:var(--text3);font-size:13px">${esc(e.message)}</div>
-      </div>`;
-  }
-}
+// Stop live AR when navigating away
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.page !== 'ar-vision' && arStream) stopLiveAR();
+  });
+});
+
 
 // ═══ INIT ═════════════════════════════════════════════════════════════════════
 loadStatus();
