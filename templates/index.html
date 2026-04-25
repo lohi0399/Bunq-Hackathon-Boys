@@ -333,7 +333,6 @@
     <span style="font-family:var(--mono);font-size:11px;color:var(--neon);background:rgba(0,255,179,.08);border:1px solid rgba(0,255,179,.15);border-radius:6px;padding:3px 8px" title="{{ iban }}">👤 {{ username }}</span>
     <span style="font-family:var(--mono);font-size:10px;color:#7dd3fc;background:rgba(125,211,252,.06);border:1px solid rgba(125,211,252,.15);border-radius:6px;padding:3px 8px;letter-spacing:.3px" title="Savings IBAN">S: {{ savings_iban }}</span>
     <span style="font-family:var(--mono);font-size:10px;color:var(--blue);background:rgba(79,140,255,.06);border:1px solid rgba(79,140,255,.15);border-radius:6px;padding:3px 8px;letter-spacing:.3px" title="Current IBAN">C: {{ current_iban }}</span>
-    <a href="/db-viewer" target="_blank" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text2);text-decoration:none;background:var(--surface2);border:1px solid var(--border-hi);border-radius:6px;padding:3px 8px">🗄 DB</a>
     <a href="/logout" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--danger);text-decoration:none;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:6px;padding:3px 8px">⏻ Out</a>
   </div>
 </header>
@@ -381,9 +380,6 @@
   </button>
 
   <div class="nav-section">System</div>
-  <a href="/db-viewer" target="_blank" class="nav-item" style="text-decoration:none">
-    <span class="nav-icon">🗄</span>Database Viewer
-  </a>
   <a href="/logout" class="nav-item" style="text-decoration:none;color:var(--danger)">
     <span class="nav-icon">⏻</span>Sign Out
   </a>

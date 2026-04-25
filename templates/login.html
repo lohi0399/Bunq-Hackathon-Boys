@@ -148,7 +148,7 @@
     <div class="section-sub">Pick a username — we'll create your bunq sandbox account with Savings &amp; Current IBANs automatically</div>
   {% else %}
     <div class="section-title">Welcome back</div>
-    <div class="section-sub">Enter your User ID to access your banking dashboard</div>
+    <div class="section-sub">Enter your username to access your banking dashboard</div>
   {% endif %}
 
   {% if error %}
@@ -161,7 +161,9 @@
     <div class="fgroup">
       <label>Username</label>
       <input name="username" type="text" placeholder="hackathon_user" required
-             autocomplete="username" minlength="3" maxlength="40" autofocus/>
+             autocomplete="username" minlength="3" maxlength="40" autofocus
+             pattern="[a-zA-Z0-9_]+" title="Only letters, numbers, and underscores"/>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">ℹ Letters, numbers, and underscores only (e.g. john_doe_123)</div>
     </div>
     <button class="btn" type="submit">✦ Create Account &amp; Get IBAN</button>
   </form>
@@ -170,9 +172,10 @@
   <!-- ─── Login form ─── -->
   <form method="POST" action="/login" autocomplete="on">
     <div class="fgroup">
-      <label>User ID</label>
+      <label>Username</label>
       <input name="username" type="text" placeholder="your_username" required
-             autocomplete="username" autofocus spellcheck="false"/>
+             autocomplete="username" autofocus spellcheck="false"
+             pattern="[a-zA-Z0-9_]+" title="Only letters, numbers, and underscores"/>
     </div>
     <button class="btn" type="submit">→ Sign In</button>
   </form>

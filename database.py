@@ -34,6 +34,12 @@ def init_db() -> None:
                     created_at    TEXT    NOT NULL
                 )
             """)
+        # Check if receipts/xray_scans need user_id migration
+        rcols = [row[1] for row in con.execute("PRAGMA table_info(receipts)").fetchall()]
+        if rcols and "user_id" not in rcols:
+            con.execute("DROP TABLE IF EXISTS receipts")
+            con.execute("DROP TABLE IF EXISTS xray_scans")
+
         con.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +54,7 @@ def init_db() -> None:
 
             CREATE TABLE IF NOT EXISTS receipts (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL,
                 merchant        TEXT    NOT NULL,
                 amount          REAL    NOT NULL,
                 currency        TEXT    NOT NULL DEFAULT 'EUR',
@@ -56,11 +63,13 @@ def init_db() -> None:
                 description     TEXT,
                 bunq_request_id TEXT,
                 items_json      TEXT,
-                created_at      TEXT    NOT NULL
+                created_at      TEXT    NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
             CREATE TABLE IF NOT EXISTS xray_scans (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          INTEGER NOT NULL,
                 item_name        TEXT    NOT NULL,
                 estimated_price  REAL    NOT NULL,
                 currency         TEXT    NOT NULL DEFAULT 'EUR',
@@ -68,7 +77,8 @@ def init_db() -> None:
                 sp500_10yr       REAL,
                 monthly_pct      REAL,
                 ai_description   TEXT,
-                created_at       TEXT    NOT NULL
+                created_at       TEXT    NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
 
@@ -94,6 +104,7 @@ def _now() -> str:
 # ── Receipts ──────────────────────────────────────────────────────────────────
 
 def save_receipt(
+    user_id: int,
     merchant: str,
     amount: float,
     currency: str,
@@ -106,31 +117,33 @@ def save_receipt(
     with _conn() as con:
         cur = con.execute(
             """INSERT INTO receipts
-               (merchant, amount, currency, category, receipt_date, description,
+               (user_id, merchant, amount, currency, category, receipt_date, description,
                 bunq_request_id, items_json, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
-            (merchant, amount, currency, category, receipt_date, description,
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (user_id, merchant, amount, currency, category, receipt_date, description,
              bunq_request_id, items_json, _now()),
         )
         return cur.lastrowid
 
 
-def list_receipts(limit: int = 50) -> list[dict]:
+def list_receipts(user_id: int, limit: int = 50) -> list[dict]:
     with _conn() as con:
         rows = con.execute(
-            "SELECT * FROM receipts ORDER BY created_at DESC LIMIT ?", (limit,)
+            "SELECT * FROM receipts WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit)
         ).fetchall()
         return [dict(r) for r in rows]
 
 
-def count_receipts() -> int:
+def count_receipts(user_id: int) -> int:
     with _conn() as con:
-        return con.execute("SELECT COUNT(*) FROM receipts").fetchone()[0]
+        return con.execute("SELECT COUNT(*) FROM receipts WHERE user_id = ?", (user_id,)).fetchone()[0]
 
 
 # ── X-Ray scans ───────────────────────────────────────────────────────────────
 
 def save_xray(
+    user_id: int,
     item_name: str,
     estimated_price: float,
     currency: str,
@@ -142,19 +155,20 @@ def save_xray(
     with _conn() as con:
         cur = con.execute(
             """INSERT INTO xray_scans
-               (item_name, estimated_price, currency, hours_of_work, sp500_10yr,
+               (user_id, item_name, estimated_price, currency, hours_of_work, sp500_10yr,
                 monthly_pct, ai_description, created_at)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (item_name, estimated_price, currency, hours_of_work, sp500_10yr,
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (user_id, item_name, estimated_price, currency, hours_of_work, sp500_10yr,
              monthly_pct, ai_description, _now()),
         )
         return cur.lastrowid
 
 
-def list_xray_scans(limit: int = 20) -> list[dict]:
+def list_xray_scans(user_id: int, limit: int = 20) -> list[dict]:
     with _conn() as con:
         rows = con.execute(
-            "SELECT * FROM xray_scans ORDER BY created_at DESC LIMIT ?", (limit,)
+            "SELECT * FROM xray_scans WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit)
         ).fetchall()
         return [dict(r) for r in rows]
 

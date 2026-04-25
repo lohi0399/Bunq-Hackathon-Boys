@@ -116,15 +116,13 @@
   <div class="logo-mark">b</div>
   <span style="font-size:14px;font-weight:800">Database Viewer</span>
   <div class="header-right">
-    <span style="font-family:var(--mono);font-size:11px;color:var(--neon);background:rgba(0,255,179,.08);border:1px solid rgba(0,255,179,.15);border-radius:6px;padding:3px 8px">👤 {{ username }}</span>
-    <a href="/" class="nav-btn ghost">← Dashboard</a>
-    <a href="/logout" class="nav-btn danger">⏻ Sign Out</a>
+    <span style="font-family:var(--mono);font-size:11px;color:var(--amber);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);border-radius:6px;padding:3px 8px">🔧 Developer Mode</span>
   </div>
 </header>
 
 <main>
   <div class="page-title">🗄 Local SQLite Database</div>
-  <div class="page-sub">receiptai.db — live view of all stored records</div>
+  <div class="page-sub">receiptai.db — admin view (all users' data)</div>
 
   <!-- ── Stats ── -->
   <div class="stats">
@@ -187,7 +185,7 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th><th>Created</th><th>Merchant</th><th>Amount</th>
+              <th>ID</th><th>User</th><th>Created</th><th>Merchant</th><th>Amount</th>
               <th>Currency</th><th>Category</th><th>Receipt Date</th>
               <th>Description</th><th>bunq Request ID</th>
             </tr>
@@ -196,6 +194,7 @@
             {% for r in receipts %}
             <tr>
               <td class="mono muted">{{ r.id }}</td>
+              <td class="mono" style="color:var(--neon)">{{ r.user_id }}</td>
               <td class="mono muted" style="font-size:10px">{{ r.created_at }}</td>
               <td style="font-weight:600">{{ r.merchant }}</td>
               <td class="mono pos">{{ "%.2f"|format(r.amount) }}</td>
@@ -226,7 +225,7 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th><th>Created</th><th>Item Name</th><th>Price (EUR)</th>
+              <th>ID</th><th>User</th><th>Created</th><th>Item Name</th><th>Price (EUR)</th>
               <th>Hours Work</th><th>S&P 500 10Y</th><th>Monthly %</th><th>Description</th>
             </tr>
           </thead>
@@ -234,6 +233,7 @@
             {% for x in xray_scans %}
             <tr>
               <td class="mono muted">{{ x.id }}</td>
+              <td class="mono" style="color:var(--neon)">{{ x.user_id }}</td>
               <td class="mono muted" style="font-size:10px">{{ x.created_at }}</td>
               <td style="font-weight:600;color:var(--purple)">{{ x.item_name }}</td>
               <td class="mono" style="color:var(--purple)">€{{ "%.2f"|format(x.estimated_price) }}</td>
@@ -254,8 +254,7 @@
 
   <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;margin-top:20px">
     DB path: <span style="color:var(--text2)">receiptai.db</span> &nbsp;·&nbsp;
-    <a href="/db-viewer" style="color:var(--neon);text-decoration:none">🔄 Refresh</a> &nbsp;·&nbsp;
-    <a href="/" style="color:var(--text2);text-decoration:none">← Back to Dashboard</a>
+    <a href="/admin/db" style="color:var(--neon);text-decoration:none">🔄 Refresh</a>
   </div>
 </main>
 

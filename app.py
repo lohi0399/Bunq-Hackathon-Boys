@@ -170,7 +170,7 @@ def login_page():
         if user_row:
             login_user(User(user_row), remember=True)
             return redirect(url_for("index"))
-        error = "User ID not found. Please register first."
+        error = "Username not found. Please register first."
     return render_template("login.html", error=error, mode="login")
 
 
@@ -181,8 +181,11 @@ def register_page():
     error = None
     if request.method == "POST":
         username = request.form.get("username", "").strip()
+        import re
         if not username or len(username) < 3:
             error = "Username must be at least 3 characters."
+        elif not re.match(r'^[a-zA-Z0-9_]+$', username):
+            error = "Username can only contain letters, numbers, and underscores."
         elif db.get_user_by_username(username):
             error = "Username already taken."
         else:
@@ -268,7 +271,7 @@ def api_status():
             "savings_balance": savings["balance"],
             "current_balance": current["balance"],
             "currency": BUNQ_CURRENCY,
-            "receipt_count": db.count_receipts(),
+            "receipt_count": db.count_receipts(current_user.id),
         })
     except Exception as e:
         return _handle_bunq_error(e)
@@ -590,6 +593,7 @@ def log_to_bunq():
         # Persist to local DB
         import json as _json
         receipt_id = db.save_receipt(
+            user_id=current_user.id,
             merchant=merchant,
             amount=amount_raw,
             currency=currency,
@@ -608,7 +612,7 @@ def log_to_bunq():
 @login_required
 def api_list_receipts():
     limit = min(int(request.args.get("limit", 50)), 200)
-    receipts = db.list_receipts(limit=limit)
+    receipts = db.list_receipts(user_id=current_user.id, limit=limit)
     # parse items_json back to list
     for r in receipts:
         try:
@@ -715,6 +719,7 @@ def xray_vision():
 
     # Persist to DB
     db.save_xray(
+        user_id=current_user.id,
         item_name=item_data.get("item_name", "Unknown"),
         estimated_price=price,
         currency="EUR",
@@ -731,31 +736,35 @@ def xray_vision():
 @login_required
 def xray_history():
     limit = min(int(request.args.get("limit", 20)), 100)
-    return jsonify(db.list_xray_scans(limit=limit))
+    return jsonify(db.list_xray_scans(user_id=current_user.id, limit=limit))
 
 
-# ── Database viewer ───────────────────────────────────────────────────────────
+# ── Admin: Database viewer (secret route for developers) ─────────────────────
 
-@app.route("/db-viewer")
-@login_required
+@app.route("/admin/db")
 def db_viewer():
+    """Developer-only database viewer — not linked from dashboard."""
     stats = db.db_stats()
     users = db.list_users()
-    receipts = db.list_receipts(limit=200)
+    # For admin view, show ALL receipts (no user filter)
+    with db._conn() as con:
+        receipts_raw = con.execute("SELECT * FROM receipts ORDER BY created_at DESC LIMIT 200").fetchall()
+        receipts = [dict(r) for r in receipts_raw]
+        xray_raw = con.execute("SELECT * FROM xray_scans ORDER BY created_at DESC LIMIT 200").fetchall()
+        xray_scans = [dict(r) for r in xray_raw]
     for r in receipts:
         try:
             r["items"] = json.loads(r.get("items_json") or "[]")
         except Exception:
             r["items"] = []
         r.pop("items_json", None)
-    xray_scans = db.list_xray_scans(limit=200)
     return render_template(
         "db_viewer.html",
         stats=stats,
         users=users,
         receipts=receipts,
         xray_scans=xray_scans,
-        username=current_user.username,
+        username="admin",
     )
 
 
@@ -773,9 +782,19 @@ def log_to_bunq_legacy():
 
 
 if __name__ == "__main__":
+    import socket
     port = int(os.getenv("PORT", 5000))
     host = os.getenv("HOST", "0.0.0.0")   # 0.0.0.0 → accessible on your local network (mobile)
-    local_ip = os.popen("hostname -I 2>/dev/null | awk '{print $1}'").read().strip() or "localhost"
+    # Get local IP reliably
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = "<your-local-ip>"
     print(f"\n  ReceiptAI → http://localhost:{port}")
-    print(f"  Mobile    → http://{local_ip}:{port}  (same WiFi)\n")
+    print(f"  Mobile    → http://{local_ip}:{port}  (same WiFi)")
+    print(f"  Admin DB  → http://localhost:{port}/admin/db\n")
+    app.run(debug=True, host=host, port=port)
     app.run(debug=True, host=host, port=port)
