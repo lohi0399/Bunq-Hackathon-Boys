@@ -842,40 +842,24 @@ def ar_bank_vision():
 
     # AI Prompt for AR Bank Vision
     prompt = (
-        "You are an AR Bank Vision AI — a real-time financial reality assistant.\n\n"
-        "The user is pointing their camera at something in the real world. "
-        "Analyze this image and provide instant financial guidance.\n\n"
-        f"USER'S FINANCIAL CONTEXT:\n"
-        f"• Total balance: €{total_balance:.2f}\n"
-        f"• Current account: €{current_balance:.2f}\n"
-        f"• Savings account: €{savings_balance:.2f}\n"
-        f"• Monthly salary: €{MONTHLY_SALARY_EUR:.2f}\n"
-        f"• Hourly wage: €{HOURLY_WAGE_EUR:.2f}\n\n"
-        "TASK:\n"
-        "1. Identify what the user is looking at (product, service, menu, invoice, listing, etc.)\n"
-        "2. Extract all visible prices/costs\n"
-        "3. Determine if they can afford it RIGHT NOW\n"
-        "4. Provide personalized financial advice\n\n"
-        "Return ONLY a JSON object:\n"
-        "{\n"
-        '  "item": "Short description of what they\'re looking at",\n'
-        '  "price": <number> (total price in EUR, or 0 if no price visible),\n'
-        '  "can_afford": <boolean>,\n'
-        '  "affordability_status": "comfortable"|"tight"|"impossible"|"no_price_found",\n'
-        '  "impact_on_balance": "How this purchase affects their accounts (1 sentence)",\n'
-        '  "hours_of_work": <number> (hours needed to earn this),\n'
-        '  "recommendation": "SHORT actionable advice (1-2 sentences)",\n'
-        '  "alternative": "Cheaper or better alternative if applicable, or null",\n'
-        '  "long_term_impact": "What this means for their financial future (1 sentence)"\n'
-        "}\n\n"
-        "Return ONLY valid JSON, no markdown, no extra text."
+        "You are an AR object scanner. Look at this image.\n"
+        "Identify the main object/product/item visible and any price shown.\n"
+        "If no clear object, describe the scene briefly.\n\n"
+        f"USER BALANCE: €{total_balance:.2f} total (current €{current_balance:.2f} / savings €{savings_balance:.2f})\n"
+        f"HOURLY WAGE: €{HOURLY_WAGE_EUR:.2f} | MONTHLY SALARY: €{MONTHLY_SALARY_EUR:.2f}\n\n"
+        "Respond ONLY with compact JSON (no spaces, no markdown):\n"
+        '{"item":"<name>","price":<EUR float or 0>,"can_afford":<bool>,'
+        '"affordability_status":"comfortable|tight|impossible|no_price_found",'
+        '"impact_on_balance":"<1 sentence>","hours_of_work":<float>,'
+        '"recommendation":"<1 sentence>","alternative":<"string" or null>,'
+        '"long_term_impact":"<1 sentence>"}'
     )
 
     try:
         ai = _get_anthropic_client()
         message = ai.messages.create(
-            model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5"),
-            max_tokens=1024,
+            model="claude-haiku-4-5",   # fastest Claude — ideal for real-time AR
+            max_tokens=400,
             messages=[{"role": "user", "content": [
                 {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_data}},
                 {"type": "text", "text": prompt},

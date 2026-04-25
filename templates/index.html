@@ -248,7 +248,7 @@
     @keyframes ar-fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .ar-result-enter{animation:ar-fade-in .35s ease both}
     /* AR grid: single column on small screens */
-    @media(max-width:700px){#ar-grid{grid-template-columns:1fr!important}}
+    @media(max-width:700px){ #ar-grid{ grid-template-columns:1fr !important } }
     .sk{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);
       background-size:200% 100%;border-radius:6px;
       animation:shimmer 1.2s ease infinite}
@@ -773,7 +773,7 @@
             style="flex:1;padding:12px;background:rgba(0,255,179,.08);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)">
             📹 Live AR
           </button>
-          <button id="ar-btn-photo" onclick="stopLiveAR()"
+          <button id="ar-btn-photo" onclick="switchToPhotoMode()"
             style="flex:1;padding:12px;background:none;border:none;color:var(--text2);font-weight:600;font-size:13px;cursor:pointer">
             📸 Photo
           </button>
@@ -1316,6 +1316,12 @@ function loadArVision() {
   if (fileIn) fileIn.onchange = () => arAnalyzeFile(fileIn);
 }
 
+function switchToPhotoMode() {
+  stopLiveAR();
+  // Small delay so the photo mode div is visible before opening picker
+  setTimeout(() => document.getElementById('ar-file').click(), 150);
+}
+
 async function startLiveAR() {
   if (arStream) return;
   try {
@@ -1404,11 +1410,14 @@ async function arScanFrame() {
 
   arScanning = true;
   document.getElementById('ar-scan-status').innerHTML =
-    '<span style="color:var(--neon)">⚡ Analyzing...</span>';
+    '<span style="color:var(--neon)">⚡ Detecting...</span>';
 
   const canvas = document.getElementById('ar-canvas');
-  canvas.width  = video.videoWidth  || 640;
-  canvas.height = video.videoHeight || 360;
+  // Downscale to max 480px wide — keeps JPEG small for fast upload & AI processing
+  const MAX_W = 480;
+  const scale = Math.min(1, MAX_W / (video.videoWidth || 640));
+  canvas.width  = Math.round((video.videoWidth  || 640) * scale);
+  canvas.height = Math.round((video.videoHeight || 360) * scale);
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
   canvas.toBlob(async (blob) => {
@@ -1428,7 +1437,7 @@ async function arScanFrame() {
     } finally {
       arScanning = false;
     }
-  }, 'image/jpeg', 0.85);
+  }, 'image/jpeg', 0.72);  // 0.72 quality — good enough for object recognition, much smaller file
 }
 
 async function arAnalyzeFile(input) {
