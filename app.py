@@ -3,7 +3,7 @@ ReceiptAI — bunq Hackathon 7.0
 -------------------------------
 Full banking dashboard with:
   • Receipt AI    — scan receipts, auto-categorise, log to bunq, stored in DB
-  • X-Ray Vision  — point camera at any item → brutal financial context overlay
+  • Lenz AI       — point camera at anything → instant financial guidance
   • Banking       — 2 fixed accounts (Savings + Current), payments, requests, transactions
   • Database      — SQLite; every scan and action is persisted locally
 
@@ -19,8 +19,7 @@ Routes:
   POST /api/analyze         Claude vision receipt analysis
   POST /api/log-to-bunq     log expense to bunq + save to DB
   GET  /api/receipts        list saved receipts from DB
-  POST /api/xray            X-Ray Spending Vision — identify item + financial impact
-  GET  /api/xray/history    list past X-Ray scans
+  POST /api/ar-vision       Lenz AI — point camera, get financial guidance
 """
 
 import base64
@@ -84,10 +83,10 @@ CATEGORY_EMOJI = {
     "TRAVEL": "✈️", "OTHER": "📋",
 }
 
-# Financial constants for X-Ray Vision
-HOURLY_WAGE_EUR   = 18.0      # ~Dutch average post-tax
-MONTHLY_SALARY_EUR = 2200.0   # ~Dutch average net/month
-SP500_10Y_MULTIPLIER = 2.594  # 10% p.a. compound for 10 years
+# Financial constants used by Lenz AI
+HOURLY_WAGE_EUR      = 18.0      # ~Dutch average post-tax
+MONTHLY_SALARY_EUR   = 2200.0    # ~Dutch average net/month
+SP500_10Y_MULTIPLIER = 2.594     # 10% p.a. compound for 10 years
 
 # Initialise DB on startup
 db.init_db()
@@ -638,124 +637,6 @@ def api_list_receipts():
     return jsonify(receipts)
 
 
-# ── X-Ray Spending Vision ──────────────────────────────────────────────────────
-
-@app.route("/api/xray", methods=["POST"])
-@login_required
-def xray_vision():
-    """
-    Identify an item in the photo and return brutal financial context:
-      - estimated price
-      - hours of work to afford it
-      - S&P 500 value in 10 years if invested instead
-      - % of monthly salary
-    """
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded (field: 'image')"}), 400
-    file = request.files["image"]
-    mime_type = file.content_type or "image/jpeg"
-    if mime_type not in ALLOWED_MIME_TYPES:
-        return jsonify({"error": f"Unsupported type: {mime_type}"}), 400
-
-    import anthropic
-
-    image_data = base64.standard_b64encode(file.read()).decode("utf-8")
-
-    prompt = (
-        "You are a financial reality-check assistant. Look at this image.\n\n"
-        "1. Identify the main physical product or item visible.\n"
-        "2. Estimate its typical retail price in EUR (be specific, realistic).\n\n"
-        "Return ONLY a JSON object with these fields:\n"
-        '  "item_name"        : string — short product name (e.g. "Nike Air Max 270")\n'
-        '  "estimated_price"  : number — price in EUR as a float\n'
-        '  "currency"         : "EUR"\n'
-        '  "price_confidence" : "low"|"medium"|"high"\n'
-        '  "description"      : string — 1-2 sentence product description\n'
-        "Return ONLY valid JSON, no markdown fences, no extra text."
-    )
-
-    try:
-        ai = _get_anthropic_client()
-        message = ai.messages.create(
-            model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5"),
-            max_tokens=512,
-            messages=[{"role": "user", "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_data}},
-                {"type": "text", "text": prompt},
-            ]}],
-        )
-    except anthropic.AuthenticationError:
-        return jsonify({"error": "Invalid ANTHROPIC_API_KEY"}), 500
-    except anthropic.BadRequestError as e:
-        msg = str(e)
-        if "credit" in msg.lower():
-            return jsonify({"error": "Anthropic account has no credits"}), 402
-        return jsonify({"error": f"Anthropic error: {msg}"}), 500
-
-    raw = message.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    try:
-        item_data = json.loads(raw)
-    except json.JSONDecodeError:
-        s, e2 = raw.find("{"), raw.rfind("}") + 1
-        if s == -1 or e2 == 0:
-            return jsonify({"error": "AI returned unexpected response"}), 500
-        item_data = json.loads(raw[s:e2])
-
-    price = float(item_data.get("estimated_price") or 0)
-    hours_of_work = round(price / HOURLY_WAGE_EUR, 1)
-    sp500_future  = round(price * SP500_10Y_MULTIPLIER, 2)
-    monthly_pct   = round((price / MONTHLY_SALARY_EUR) * 100, 1)
-
-    # Build impact messages
-    impacts = []
-    if hours_of_work >= 1:
-        h = int(hours_of_work)
-        m = int((hours_of_work - h) * 60)
-        time_str = f"{h}h {m}m" if m else f"{h}h"
-        impacts.append(f"You'd work {time_str} to afford this")
-    impacts.append(f"Invested in S&P 500 today → €{sp500_future:,.0f} in 10 years")
-    if monthly_pct >= 100:
-        impacts.append(f"That's {monthly_pct:.0f}% of your monthly salary")
-    elif monthly_pct >= 10:
-        impacts.append(f"That's {monthly_pct:.1f}% of your monthly salary")
-    else:
-        impacts.append(f"Just {monthly_pct:.1f}% of your monthly salary — barely noticeable")
-
-    result = {
-        **item_data,
-        "estimated_price": price,
-        "hours_of_work": hours_of_work,
-        "sp500_10yr": sp500_future,
-        "monthly_pct": monthly_pct,
-        "impacts": impacts,
-    }
-
-    # Persist to DB
-    db.save_xray(
-        user_id=current_user.id,
-        item_name=item_data.get("item_name", "Unknown"),
-        estimated_price=price,
-        currency="EUR",
-        hours_of_work=hours_of_work,
-        sp500_10yr=sp500_future,
-        monthly_pct=monthly_pct,
-        ai_description=item_data.get("description", ""),
-    )
-
-    result["_message_id"] = message.id
-    result["_source"] = "xray"
-    return jsonify(result)
-
-
-@app.route("/api/xray/history")
-@login_required
-def xray_history():
-    limit = min(int(request.args.get("limit", 20)), 100)
-    return jsonify(db.list_xray_scans(user_id=current_user.id, limit=limit))
-
-
 @app.route("/api/receipts/clear", methods=["DELETE"])
 @login_required
 def clear_receipts():
@@ -763,18 +644,11 @@ def clear_receipts():
     return jsonify({"success": True, "deleted": count})
 
 
-@app.route("/api/xray/clear", methods=["DELETE"])
-@login_required
-def clear_xray():
-    count = db.clear_xray_scans(user_id=current_user.id)
-    return jsonify({"success": True, "deleted": count})
-
-
-# ── AR Bank Vision (AI-powered financial guidance) ────────────────────────────
+# ── Lenz AI (AI-powered financial guidance) ───────────────────────────────────
 
 @app.route("/api/ar-vision", methods=["POST"])
 @login_required
-def ar_bank_vision():
+def lenz_ai():
     """
     Lenz AI — Point camera at anything and get instant financial guidance.
     
