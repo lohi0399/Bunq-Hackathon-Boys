@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <title>ReceiptAI — bunq Hackathon 7.0</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
@@ -446,9 +449,9 @@
 
           <!-- hidden file inputs -->
           <input type="file" id="file-input" accept="image/*" style="display:none"/>
-          <input type="file" id="cam-input" accept="image/*" capture="environment" style="display:none"/>
+          <input type="file" id="cam-input" accept="image/*" style="display:none"/>
 
-          <!-- Camera button (works on mobile) -->
+          <!-- Camera button (works on mobile AND desktop) -->
           <div style="display:flex;gap:8px;margin-top:10px">
             <button class="camera-btn" onclick="document.getElementById('cam-input').click()">📷 Use Camera</button>
             <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('file-input').click()">📁 Browse File</button>
@@ -514,7 +517,7 @@
           </div>
         </div>
         <input type="file" id="xray-file" accept="image/*" style="display:none"/>
-        <input type="file" id="xray-cam" accept="image/*" capture="environment" style="display:none"/>
+        <input type="file" id="xray-cam" accept="image/*" style="display:none"/>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="camera-btn" onclick="document.getElementById('xray-cam').click()">📷 Aim Camera</button>
           <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('xray-file').click()">📁 Upload Photo</button>

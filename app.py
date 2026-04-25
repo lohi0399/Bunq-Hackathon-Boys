@@ -783,18 +783,45 @@ def log_to_bunq_legacy():
 
 if __name__ == "__main__":
     import socket
+    import subprocess
     port = int(os.getenv("PORT", 5000))
     host = os.getenv("HOST", "0.0.0.0")   # 0.0.0.0 → accessible on your local network (mobile)
-    # Get local IP reliably
+    
+    # Get local IP with multiple fallback methods
+    local_ip = None
     try:
+        # Method 1: Socket to external DNS
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
         s.close()
     except Exception:
-        local_ip = "<your-local-ip>"
-    print(f"\n  ReceiptAI → http://localhost:{port}")
-    print(f"  Mobile    → http://{local_ip}:{port}  (same WiFi)")
-    print(f"  Admin DB  → http://localhost:{port}/admin/db\n")
-    app.run(debug=True, host=host, port=port)
+        try:
+            # Method 2: hostname resolution
+            local_ip = socket.gethostbyname(socket.gethostname())
+        except Exception:
+            try:
+                # Method 3: ip command
+                result = subprocess.run(['ip', 'route', 'get', '1.1.1.1'], 
+                                       capture_output=True, text=True, timeout=2)
+                for line in result.stdout.split('\n'):
+                    if 'src' in line:
+                        local_ip = line.split('src')[1].split()[0]
+                        break
+            except Exception:
+                local_ip = "<check-ifconfig>"
+    
+    print(f"\n  ┌──────────────────────────────────────────────────────────")
+    print(f"  │  ReceiptAI — bunq Hackathon 7.0")
+    print(f"  ├──────────────────────────────────────────────────────────")
+    print(f"  │  Desktop:  http://localhost:{port}")
+    print(f"  │  Mobile:   http://{local_ip}:{port}  (same WiFi)")
+    print(f"  │  Admin DB: http://localhost:{port}/admin/db")
+    print(f"  └──────────────────────────────────────────────────────────\n")
+    print(f"  ⚠  Mobile troubleshooting:")
+    print(f"     1. Ensure phone is on same WiFi network")
+    print(f"     2. Check firewall allows port {port}")
+    print(f"     3. Try: http://{local_ip}:{port}")
+    print(f"     4. Your IP might be: {local_ip}\n")
+    
     app.run(debug=True, host=host, port=port)
