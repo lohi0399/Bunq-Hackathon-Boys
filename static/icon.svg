@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ffb3"/>
+      <stop offset="100%" stop-color="#4f8cff"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Subtle border glow -->
+  <rect x="2" y="2" width="508" height="508" rx="111" fill="none" stroke="#00ffb3" stroke-width="2" opacity="0.25"/>
+  <!-- Camera lens ring -->
+  <circle cx="256" cy="240" r="140" fill="none" stroke="url(#g)" stroke-width="12" opacity="0.2"/>
+  <circle cx="256" cy="240" r="105" fill="none" stroke="url(#g)" stroke-width="6" opacity="0.35"/>
+  <!-- L lettermark -->
+  <text x="256" y="320" font-family="Arial Black,Helvetica,sans-serif" font-size="230" font-weight="900"
+        fill="url(#g)" text-anchor="middle" dominant-baseline="auto">L</text>
+  <!-- Lens dot -->
+  <circle cx="256" cy="420" r="14" fill="#00ffb3" opacity="0.7"/>
+</svg>

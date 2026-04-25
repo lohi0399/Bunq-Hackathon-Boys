@@ -256,6 +256,40 @@ def index():
     )
 
 
+# ── PWA manifest ───────────────────────────────────────────────────────────────
+
+@app.route("/manifest.json")
+def pwa_manifest():
+    manifest = {
+        "name": "Lenz — Smart Finance",
+        "short_name": "Lenz",
+        "description": "AI-powered financial companion. Scan receipts, identify items, and get real-time financial insights.",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#07090f",
+        "theme_color": "#00ffb3",
+        "orientation": "portrait-primary",
+        "categories": ["finance", "productivity"],
+        "icons": [
+            {
+                "src": "/static/icon.svg",
+                "sizes": "any",
+                "type": "image/svg+xml",
+                "purpose": "any"
+            },
+            {
+                "src": "/static/icon.svg",
+                "sizes": "any",
+                "type": "image/svg+xml",
+                "purpose": "maskable"
+            }
+        ]
+    }
+    from flask import Response
+    return Response(json.dumps(manifest), mimetype="application/manifest+json")
+
+
 # ── Status ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/status")
