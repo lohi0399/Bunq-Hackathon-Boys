@@ -356,6 +356,9 @@
   <button class="nav-item" data-page="xray" onclick="nav('xray',this)">
     <span class="nav-icon">🔬</span>X-Ray Vision
   </button>
+  <button class="nav-item" data-page="ar-vision" onclick="nav('ar-vision',this)">
+    <span class="nav-icon">🎯</span>AR Bank Vision
+  </button>
 
   <div class="nav-section">Banking</div>
   <button class="nav-item" data-page="accounts" onclick="nav('accounts',this)">
@@ -375,6 +378,11 @@
   </button>
   <button class="nav-item" data-page="bunqme" onclick="nav('bunqme',this)">
     <span class="nav-icon">🔗</span>bunq.me Link
+  </button>
+
+  <div class="nav-section">Analytics</div>
+  <button class="nav-item" data-page="insights" onclick="nav('insights',this)">
+    <span class="nav-icon">📊</span>Spending Insights
   </button>
 
   <div class="nav-section">History</div>
@@ -722,6 +730,44 @@
     </div>
   </div>
 
+  <!-- ─── AR BANK VISION ─── -->
+  <div class="page" id="page-ar-vision">
+    <div class="page-header">
+      <div class="page-title">🎯 AR Bank Vision</div>
+      <div class="page-sub">Point your camera at anything — get instant financial guidance</div>
+    </div>
+    <div class="card">
+      <div class="form-group">
+        <label class="label">How it works:</label>
+        <div style="background:rgba(79,140,255,.05);border:1px solid rgba(79,140,255,.2);border-radius:8px;padding:12px;margin-bottom:16px">
+          <p style="margin:0 0 8px 0;color:var(--blue)">📸 Point at: menu, product tag, invoice, shopping cart, apartment listing, travel poster, etc.</p>
+          <p style="margin:0;color:var(--text2)">💡 Get: affordability check, account impact, alternatives, long-term perspective</p>
+        </div>
+
+        <input type="file" id="ar-file" accept="image/*" style="display:none"/>
+        <input type="file" id="ar-cam" accept="image/*" style="display:none"/>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="camera-btn" onclick="document.getElementById('ar-cam').click()">🎯 Scan Now</button>
+          <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('ar-file').click()">📁 Upload Photo</button>
+        </div>
+      </div>
+      <div id="ar-result" style="display:none;margin-top:20px"></div>
+    </div>
+  </div>
+
+  <!-- ─── SPENDING INSIGHTS ─── -->
+  <div class="page" id="page-insights">
+    <div class="page-header">
+      <div class="page-title">📊 Spending Insights</div>
+      <div class="page-sub">Categorized spending breakdown for this month</div>
+    </div>
+    <div class="card">
+      <div id="insights-body">
+        <div class="empty"><div class="empty-icon">📊</div>Loading insights...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── HISTORY ─── -->
   <div class="page" id="page-history">
     <div class="page-header">
@@ -760,6 +806,8 @@ function nav(id, btn) {
   if (id === 'transactions') loadTransactions();
   if (id === 'history') { loadHistReceipts(); loadHistXray(); }
   if (id === 'xray') loadXrayHistory();
+  if (id === 'insights') loadInsights();
+  if (id === 'ar-vision') loadArVision();
 }
 function navBtn(id) { return document.querySelector(`[data-page="${id}"]`); }
 
@@ -1155,6 +1203,237 @@ async function loadHistXray() {
         <td class="td-mono" style="color:var(--pink)">${s.monthly_pct}%</td>
       </tr>`).join('')}</tbody></table></div>`;
   } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
+}
+
+// ═══ AR BANK VISION ══════════════════════════════════════════════════════════
+function loadArVision() {
+  // Set up file input listeners
+  const arCam = document.getElementById('ar-cam');
+  const arFile = document.getElementById('ar-file');
+  
+  arCam.onchange = () => arBankVision(arCam);
+  arFile.onchange = () => arBankVision(arFile);
+}
+
+async function arBankVision(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const resultDiv = document.getElementById('ar-result');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = `
+    <div style="text-align:center;padding:40px">
+      <div class="spin" style="width:48px;height:48px;border-width:4px;margin:0 auto 16px"></div>
+      <div style="color:var(--neon);font-weight:600;font-size:16px">Analyzing your view...</div>
+      <div style="color:var(--text3);font-size:13px;margin-top:8px">AI is checking affordability & impact</div>
+    </div>`;
+  
+  const fd = new FormData();
+  fd.append('image', input.files[0]);
+  
+  try {
+    const r = await fetch('/api/ar-vision', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Analysis failed');
+    
+    renderArVision(d);
+    toast('AR Bank Vision complete! 🎯', 'ok');
+  } catch (e) {
+    resultDiv.innerHTML = `
+      <div style="background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.3);border-radius:8px;padding:16px">
+        <div style="color:var(--danger);font-weight:600;margin-bottom:4px">❌ Analysis Failed</div>
+        <div style="color:var(--text3);font-size:13px">${esc(e.message)}</div>
+      </div>`;
+    toast(e.message, 'err');
+  }
+  
+  input.value = '';
+}
+
+function renderArVision(d) {
+  const canAfford = d.can_afford;
+  const status = d.affordability_status || 'no_price_found';
+  
+  let statusColor = 'var(--text3)';
+  let statusIcon = '❓';
+  let statusText = 'No price detected';
+  
+  if (status === 'comfortable') {
+    statusColor = 'var(--neon)';
+    statusIcon = '✅';
+    statusText = 'Comfortably affordable';
+  } else if (status === 'tight') {
+    statusColor = 'var(--amber)';
+    statusIcon = '⚠️';
+    statusText = 'You can afford it, but it\'s tight';
+  } else if (status === 'impossible') {
+    statusColor = 'var(--danger)';
+    statusIcon = '❌';
+    statusText = 'Beyond your current budget';
+  }
+  
+  const priceStr = d.price > 0 ? `€${Number(d.price).toFixed(2)}` : 'Unknown';
+  const balanceAfter = d.balance_after || 0;
+  const percentOfBalance = d.percent_of_balance || 0;
+  
+  let html = `
+    <div style="background:linear-gradient(135deg,rgba(0,255,179,.08),rgba(79,140,255,.08));border:2px solid var(--border-glow);border-radius:12px;padding:20px">
+      
+      <!-- Item & Price -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">You're looking at</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text)">${esc(d.item || 'Unknown item')}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Price</div>
+          <div style="font-size:20px;font-weight:800;color:var(--purple);font-family:JetBrains Mono">${priceStr}</div>
+        </div>
+      </div>
+      
+      <!-- Affordability Status -->
+      <div style="background:rgba(0,0,0,.3);border:1px solid ${statusColor};border-radius:8px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:32px">${statusIcon}</div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:15px;color:${statusColor};margin-bottom:4px">${statusText}</div>
+            <div style="font-size:12px;color:var(--text2)">${esc(d.impact_on_balance || '')}</div>
+          </div>
+        </div>
+      </div>`;
+  
+  if (d.price > 0) {
+    html += `
+      <!-- Financial Metrics -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Hours Work</div>
+          <div style="font-size:16px;font-weight:700;color:var(--amber);font-family:JetBrains Mono">${Number(d.hours_of_work||0).toFixed(1)}h</div>
+        </div>
+        <div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Balance After</div>
+          <div style="font-size:16px;font-weight:700;color:${balanceAfter > 0 ? 'var(--neon)' : 'var(--danger)'};font-family:JetBrains Mono">€${Number(balanceAfter).toFixed(0)}</div>
+        </div>
+        <div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">% of Balance</div>
+          <div style="font-size:16px;font-weight:700;color:var(--pink);font-family:JetBrains Mono">${Number(percentOfBalance).toFixed(1)}%</div>
+        </div>
+      </div>
+      
+      <!-- Long-term Impact -->
+      <div style="background:rgba(79,140,255,.05);border:1px solid rgba(79,140,255,.2);border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:6px">💡 10-Year Perspective</div>
+        <div style="font-size:13px;color:var(--text2)">Invested in S&P 500: <span style="color:var(--neon);font-weight:700;font-family:JetBrains Mono">€${Number(d.sp500_future||0).toFixed(0)}</span> in 10 years</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">${esc(d.long_term_impact || '')}</div>
+      </div>`;
+  }
+  
+  html += `
+      <!-- AI Recommendation -->
+      <div style="background:rgba(0,255,179,.05);border:1px solid var(--border-glow);border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--neon);margin-bottom:6px">🎯 Recommendation</div>
+        <div style="font-size:14px;color:var(--text);line-height:1.6">${esc(d.recommendation || 'Make an informed decision!')}</div>
+      </div>`;
+  
+  if (d.alternative) {
+    html += `
+      <!-- Alternative -->
+      <div style="background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:12px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--purple);margin-bottom:6px">💡 Smarter Alternative</div>
+        <div style="font-size:13px;color:var(--text2)">${esc(d.alternative)}</div>
+      </div>`;
+  }
+  
+  html += `
+    </div>`;
+  
+  document.getElementById('ar-result').innerHTML = html;
+}
+
+// ═══ SPENDING INSIGHTS ═══════════════════════════════════════════════════════
+async function loadInsights() {
+  const el = document.getElementById('insights-body');
+  el.innerHTML = '<div style="text-align:center;padding:40px"><div class="spin" style="width:48px;height:48px;border-width:4px;margin:0 auto 16px"></div><div style="color:var(--text2)">Loading insights...</div></div>';
+  
+  try {
+    const data = await api('/api/insights');
+    
+    if (!data.categories || data.categories.length === 0) {
+      el.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">📊</div>
+          <div style="margin-top:12px;color:var(--text3)">No spending data for this month yet</div>
+          <div style="margin-top:8px;color:var(--text3);font-size:13px">Make some transactions to see categorized insights!</div>
+        </div>`;
+      return;
+    }
+    
+    const total = data.total || 0;
+    const currency = data.currency || 'EUR';
+    
+    // Generate category breakdown
+    let html = `
+      <div style="margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px">
+          <div>
+            <div style="font-size:13px;color:var(--text3);margin-bottom:4px">Total Spending This Month</div>
+            <div style="font-size:32px;font-weight:800;color:var(--purple);font-family:JetBrains Mono">€${Number(total).toFixed(2)}</div>
+          </div>
+          <div style="font-size:12px;color:var(--text3)">
+            ${esc(data.period?.start?.slice(0,10) || '')} — ${esc(data.period?.end?.slice(0,10) || '')}
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">📊 Category Breakdown</div>
+      </div>
+      
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th style="text-align:center">Transactions</th>
+              <th style="text-align:right">Amount</th>
+              <th style="text-align:right">% of Total</th>
+            </tr>
+          </thead>
+          <tbody>`;
+    
+    data.categories.forEach(cat => {
+      const percent = total > 0 ? ((cat.amount / total) * 100).toFixed(1) : 0;
+      const barWidth = percent;
+      
+      html += `
+        <tr>
+          <td style="font-weight:600">${esc(cat.category)}</td>
+          <td style="text-align:center;font-family:JetBrains Mono;color:var(--text3)">${cat.transactions}</td>
+          <td style="text-align:right;font-family:JetBrains Mono;color:var(--purple);font-weight:600">€${Number(cat.amount).toFixed(2)}</td>
+          <td style="text-align:right">
+            <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+              <div style="flex:0 0 60px;height:6px;background:rgba(168,85,247,.1);border-radius:3px;overflow:hidden">
+                <div style="height:100%;background:var(--purple);width:${barWidth}%;transition:width 0.3s"></div>
+              </div>
+              <span style="font-family:JetBrains Mono;color:var(--pink);font-weight:600;font-size:12px">${percent}%</span>
+            </div>
+          </td>
+        </tr>`;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>`;
+    
+    el.innerHTML = html;
+    
+  } catch (e) {
+    el.innerHTML = `
+      <div style="background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.3);border-radius:8px;padding:16px;text-align:center">
+        <div style="color:var(--danger);font-weight:600;margin-bottom:4px">❌ Failed to load insights</div>
+        <div style="color:var(--text3);font-size:13px">${esc(e.message)}</div>
+      </div>`;
+  }
 }
 
 // ═══ INIT ═════════════════════════════════════════════════════════════════════

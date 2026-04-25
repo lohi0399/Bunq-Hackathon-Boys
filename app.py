@@ -739,6 +739,182 @@ def xray_history():
     return jsonify(db.list_xray_scans(user_id=current_user.id, limit=limit))
 
 
+# ── Spending Insights (bunq API) ──────────────────────────────────────────────
+
+@app.route("/api/insights")
+@login_required
+def get_insights():
+    """Fetch categorized spending insights from bunq for current month."""
+    from datetime import datetime, timedelta
+    
+    # Default to current month
+    today = datetime.today()
+    month_start = today.replace(day=1).strftime("%Y-%m-%d 00:00:00")
+    next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+    month_end = next_month.strftime("%Y-%m-%d 00:00:00")
+    
+    try:
+        client = _get_client()
+        insights = client.get(
+            f"user/{client.user_id}/insights",
+            params={
+                "time_start": month_start,
+                "time_end": month_end,
+            },
+        )
+        
+        # Parse and format insights data
+        categories = []
+        total_spent = 0.0
+        for item in insights or []:
+            ins = item.get("InsightCategory", item)
+            cat_obj = ins.get("category", {})
+            category = cat_obj.get("category", "UNKNOWN") if isinstance(cat_obj, dict) else str(cat_obj)
+            count = ins.get("number_of_transactions", 0)
+            amount_obj = ins.get("amount_total", ins.get("total_amount", {}))
+            value = float(amount_obj.get("value", 0)) if isinstance(amount_obj, dict) else 0.0
+            currency = amount_obj.get("currency", "EUR") if isinstance(amount_obj, dict) else "EUR"
+            
+            if value != 0:
+                categories.append({
+                    "category": category,
+                    "transactions": count,
+                    "amount": abs(value),
+                    "currency": currency,
+                })
+                total_spent += abs(value)
+        
+        return jsonify({
+            "period": {"start": month_start, "end": month_end},
+            "categories": categories,
+            "total": total_spent,
+            "currency": "EUR",
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e), "categories": [], "total": 0}), 500
+
+
+# ── AR Bank Vision (AI-powered financial guidance) ────────────────────────────
+
+@app.route("/api/ar-vision", methods=["POST"])
+@login_required
+def ar_bank_vision():
+    """
+    AR Bank Vision — Point camera at anything and get instant financial guidance.
+    
+    Analyzes what you're looking at and provides:
+    - Affordability check (can you afford it?)
+    - Impact on your accounts
+    - Smarter alternatives
+    - Long-term financial perspective
+    """
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+
+    f = request.files["image"]
+    mime_type = f.content_type or "image/jpeg"
+    image_data = base64.b64encode(f.read()).decode("utf-8")
+
+    # Get current account balances
+    try:
+        client = _get_client()
+        accounts = client.get(f"user/{client.user_id}/monetary-account")
+        
+        savings_balance = 0.0
+        current_balance = 0.0
+        for acc_obj in accounts:
+            acc = acc_obj.get("MonetaryAccountBank", {})
+            desc = acc.get("description", "").lower()
+            balance_obj = acc.get("balance", {})
+            value = float(balance_obj.get("value", 0))
+            
+            if "savings" in desc or acc.get("id") == getattr(current_user, "savings_iban", None):
+                savings_balance = value
+            elif "current" in desc or acc.get("id") == getattr(current_user, "current_iban", None):
+                current_balance = value
+        
+        total_balance = savings_balance + current_balance
+    except Exception:
+        total_balance = 1000.0  # Fallback
+        savings_balance = 500.0
+        current_balance = 500.0
+
+    # AI Prompt for AR Bank Vision
+    prompt = (
+        "You are an AR Bank Vision AI — a real-time financial reality assistant.\n\n"
+        "The user is pointing their camera at something in the real world. "
+        "Analyze this image and provide instant financial guidance.\n\n"
+        f"USER'S FINANCIAL CONTEXT:\n"
+        f"• Total balance: €{total_balance:.2f}\n"
+        f"• Current account: €{current_balance:.2f}\n"
+        f"• Savings account: €{savings_balance:.2f}\n"
+        f"• Monthly salary: €{MONTHLY_SALARY_EUR:.2f}\n"
+        f"• Hourly wage: €{HOURLY_WAGE_EUR:.2f}\n\n"
+        "TASK:\n"
+        "1. Identify what the user is looking at (product, service, menu, invoice, listing, etc.)\n"
+        "2. Extract all visible prices/costs\n"
+        "3. Determine if they can afford it RIGHT NOW\n"
+        "4. Provide personalized financial advice\n\n"
+        "Return ONLY a JSON object:\n"
+        "{\n"
+        '  "item": "Short description of what they\'re looking at",\n'
+        '  "price": <number> (total price in EUR, or 0 if no price visible),\n'
+        '  "can_afford": <boolean>,\n'
+        '  "affordability_status": "comfortable"|"tight"|"impossible"|"no_price_found",\n'
+        '  "impact_on_balance": "How this purchase affects their accounts (1 sentence)",\n'
+        '  "hours_of_work": <number> (hours needed to earn this),\n'
+        '  "recommendation": "SHORT actionable advice (1-2 sentences)",\n'
+        '  "alternative": "Cheaper or better alternative if applicable, or null",\n'
+        '  "long_term_impact": "What this means for their financial future (1 sentence)"\n'
+        "}\n\n"
+        "Return ONLY valid JSON, no markdown, no extra text."
+    )
+
+    try:
+        ai = _get_anthropic_client()
+        message = ai.messages.create(
+            model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5"),
+            max_tokens=1024,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_data}},
+                {"type": "text", "text": prompt},
+            ]}],
+        )
+    except anthropic.AuthenticationError:
+        return jsonify({"error": "Invalid ANTHROPIC_API_KEY"}), 500
+    except anthropic.BadRequestError as e:
+        msg = str(e)
+        if "credit" in msg.lower():
+            return jsonify({"error": "Anthropic account has no credits"}), 402
+        return jsonify({"error": f"Anthropic error: {msg}"}), 500
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    
+    try:
+        ar_data = json.loads(raw)
+    except json.JSONDecodeError:
+        s, e2 = raw.find("{"), raw.rfind("}") + 1
+        if s == -1 or e2 == 0:
+            return jsonify({"error": "AI returned unexpected response", "raw": raw}), 500
+        ar_data = json.loads(raw[s:e2])
+
+    # Enrich with additional context
+    price = float(ar_data.get("price", 0))
+    ar_data["balance_after"] = total_balance - price if price > 0 else total_balance
+    ar_data["percent_of_balance"] = round((price / total_balance * 100), 1) if total_balance > 0 and price > 0 else 0
+    ar_data["sp500_future"] = round(price * SP500_10Y_MULTIPLIER, 2) if price > 0 else 0
+    ar_data["user_balance"] = {
+        "total": total_balance,
+        "current": current_balance,
+        "savings": savings_balance,
+    }
+
+    return jsonify(ar_data)
+
+
 # ── Admin: Database viewer (secret route for developers) ─────────────────────
 
 @app.route("/admin/db")
