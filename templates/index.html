@@ -58,14 +58,31 @@
     /* ═══ SIDEBAR ═══ */
     nav{width:var(--sidebar);flex-shrink:0;background:var(--surface);
       border-right:1px solid var(--border);display:flex;flex-direction:column;
-      padding:14px 10px;gap:2px;overflow-y:auto}
+      padding:14px 10px;gap:2px;overflow-y:auto;overflow-x:hidden;
+      transition:width .22s ease,padding .22s ease}
+    nav.collapsed{width:54px;padding:14px 8px}
+    nav.collapsed .nav-label,
+    nav.collapsed .nav-section,
+    nav.collapsed .nav-badge{display:none}
+    nav.collapsed .nav-item{justify-content:center;padding:9px 0;width:38px;margin:0 auto}
+    nav.collapsed .nav-icon{width:auto;font-size:16px}
+    .nav-toggle{display:flex;align-items:center;justify-content:flex-end;
+      padding:0 2px 10px;flex-shrink:0}
+    nav.collapsed .nav-toggle{justify-content:center}
+    .nav-toggle-btn{background:none;border:1px solid var(--border);
+      color:var(--text3);border-radius:6px;width:26px;height:26px;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      font-size:13px;transition:all .15s;flex-shrink:0}
+    .nav-toggle-btn:hover{border-color:var(--neon);color:var(--neon);
+      background:rgba(0,255,179,.06)}
     .nav-section{font-family:var(--mono);font-size:9px;font-weight:600;
       letter-spacing:2px;text-transform:uppercase;color:var(--text3);
-      padding:10px 10px 4px;margin-top:4px}
+      padding:10px 10px 4px;margin-top:4px;white-space:nowrap}
     .nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;
       border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;
       color:var(--text2);transition:all .13s;border:none;background:none;
       width:100%;text-align:left;font-family:var(--font)}
+    .nav-label{white-space:nowrap;overflow:hidden}
     .nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
     .nav-item:hover{background:var(--surface2);color:var(--text)}
     .nav-item.active{background:rgba(0,255,179,.08);color:var(--neon);
@@ -343,56 +360,59 @@
 <div class="shell">
 
 <!-- ══ SIDEBAR ══ -->
-<nav>
+<nav id="sidebar">
+  <div class="nav-toggle">
+    <button class="nav-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Collapse menu">☰</button>
+  </div>
   <div class="nav-section">Overview</div>
   <button class="nav-item active" data-page="dashboard" onclick="nav('dashboard',this)">
-    <span class="nav-icon">⬡</span>Dashboard
+    <span class="nav-icon">⬡</span><span class="nav-label">Dashboard</span>
   </button>
 
   <div class="nav-section">AI Features</div>
   <button class="nav-item" data-page="receipt-ai" onclick="nav('receipt-ai',this)">
-    <span class="nav-icon">🧾</span>Receipt AI
+    <span class="nav-icon">🧾</span><span class="nav-label">Receipt AI</span>
   </button>
   <button class="nav-item" data-page="xray" onclick="nav('xray',this)">
-    <span class="nav-icon">🔬</span>X-Ray Vision
+    <span class="nav-icon">🔬</span><span class="nav-label">X-Ray Vision</span>
   </button>
   <button class="nav-item" data-page="ar-vision" onclick="nav('ar-vision',this)">
-    <span class="nav-icon">🎯</span>AR Bank Vision
+    <span class="nav-icon">🎯</span><span class="nav-label">AR Bank Vision</span>
   </button>
 
   <div class="nav-section">Banking</div>
   <button class="nav-item" data-page="accounts" onclick="nav('accounts',this)">
-    <span class="nav-icon">🏦</span>Accounts
+    <span class="nav-icon">🏦</span><span class="nav-label">Accounts</span>
   </button>
   <button class="nav-item" data-page="transactions" onclick="nav('transactions',this)">
-    <span class="nav-icon">📋</span>Transactions
+    <span class="nav-icon">📋</span><span class="nav-label">Transactions</span>
   </button>
   <button class="nav-item" data-page="payment" onclick="nav('payment',this)">
-    <span class="nav-icon">💸</span>Send Payment
+    <span class="nav-icon">💸</span><span class="nav-label">Send Payment</span>
   </button>
   <button class="nav-item" data-page="transfer" onclick="nav('transfer',this)">
-    <span class="nav-icon">🔄</span>Transfer Funds
+    <span class="nav-icon">🔄</span><span class="nav-label">Transfer Funds</span>
   </button>
   <button class="nav-item" data-page="request" onclick="nav('request',this)">
-    <span class="nav-icon">📥</span>Request Money
+    <span class="nav-icon">📥</span><span class="nav-label">Request Money</span>
   </button>
   <button class="nav-item" data-page="bunqme" onclick="nav('bunqme',this)">
-    <span class="nav-icon">🔗</span>bunq.me Link
+    <span class="nav-icon">🔗</span><span class="nav-label">bunq.me Link</span>
   </button>
 
   <div class="nav-section">Analytics</div>
   <button class="nav-item" data-page="insights" onclick="nav('insights',this)">
-    <span class="nav-icon">📊</span>Spending Insights
+    <span class="nav-icon">📊</span><span class="nav-label">Spending Insights</span>
   </button>
 
   <div class="nav-section">History</div>
   <button class="nav-item" data-page="history" onclick="nav('history',this)">
-    <span class="nav-icon">🗂</span>Scan History
+    <span class="nav-icon">🗂</span><span class="nav-label">Scan History</span>
   </button>
 
   <div class="nav-section">System</div>
   <a href="/logout" class="nav-item" style="text-decoration:none;color:var(--danger)">
-    <span class="nav-icon">⏻</span>Sign Out
+    <span class="nav-icon">⏻</span><span class="nav-label">Sign Out</span>
   </a>
 </nav>
 
@@ -810,6 +830,14 @@ function nav(id, btn) {
   if (id === 'ar-vision') loadArVision();
 }
 function navBtn(id) { return document.querySelector(`[data-page="${id}"]`); }
+
+function toggleSidebar() {
+  const nav = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle');
+  const collapsed = nav.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '▶' : '☰';
+  btn.title = collapsed ? 'Expand menu' : 'Collapse menu';
+}
 
 // ═══ UTILITIES ═══════════════════════════════════════════════════════════════
 function esc(s) {
