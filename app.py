@@ -718,6 +718,20 @@ def xray_history():
     return jsonify(db.list_xray_scans(user_id=current_user.id, limit=limit))
 
 
+@app.route("/api/receipts/clear", methods=["DELETE"])
+@login_required
+def clear_receipts():
+    count = db.clear_receipts(user_id=current_user.id)
+    return jsonify({"success": True, "deleted": count})
+
+
+@app.route("/api/xray/clear", methods=["DELETE"])
+@login_required
+def clear_xray():
+    count = db.clear_xray_scans(user_id=current_user.id)
+    return jsonify({"success": True, "deleted": count})
+
+
 # ── AR Bank Vision (AI-powered financial guidance) ────────────────────────────
 
 @app.route("/api/ar-vision", methods=["POST"])

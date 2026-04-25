@@ -173,6 +173,20 @@ def list_xray_scans(user_id: int, limit: int = 20) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def clear_receipts(user_id: int) -> int:
+    """Delete all receipts for a user. Returns number of rows deleted."""
+    with _conn() as con:
+        cur = con.execute("DELETE FROM receipts WHERE user_id = ?", (user_id,))
+        return cur.rowcount
+
+
+def clear_xray_scans(user_id: int) -> int:
+    """Delete all X-Ray scans for a user. Returns number of rows deleted."""
+    with _conn() as con:
+        cur = con.execute("DELETE FROM xray_scans WHERE user_id = ?", (user_id,))
+        return cur.rowcount
+
+
 # ── Users (IBAN-based, no password) ──────────────────────────────────────────
 
 def create_user(username: str, iban: str, bunq_api_key: str, bunq_user_id: int,
