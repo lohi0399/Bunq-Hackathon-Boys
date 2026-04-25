@@ -767,16 +767,23 @@
 
       <!-- LEFT: Video Feed -->
       <div class="card" style="padding:0;overflow:hidden;position:relative">
-        <!-- Mode Bar -->
-        <div style="display:flex;gap:0;border-bottom:1px solid var(--border)">
-          <button id="ar-btn-live" onclick="startLiveAR()"
-            style="flex:1;padding:12px;background:rgba(0,255,179,.08);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)">
-            📹 Live AR
-          </button>
-          <button id="ar-btn-photo" onclick="switchToPhotoMode()"
-            style="flex:1;padding:12px;background:none;border:none;color:var(--text2);font-weight:600;font-size:13px;cursor:pointer">
-            📸 Photo
-          </button>
+        <!-- Header bar — single Start/Stop button, no Photo tab -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)">
+          <span style="font-size:13px;font-weight:700;color:var(--neon)">📹 Live AR Camera</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="ar-btn-live" onclick="startLiveAR()"
+              style="padding:6px 16px;background:rgba(0,255,179,.12);border:1px solid var(--border-glow);color:var(--neon);font-weight:700;font-size:12px;border-radius:6px;cursor:pointer">
+              ▶ Start
+            </button>
+            <button id="ar-stop-top" onclick="stopLiveAR()"
+              style="display:none;padding:6px 16px;background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.4);color:var(--danger);font-weight:700;font-size:12px;border-radius:6px;cursor:pointer">
+              ■ Stop
+            </button>
+            <button onclick="arCaptureNow()"
+              style="padding:6px 16px;background:rgba(79,140,255,.1);border:1px solid rgba(79,140,255,.3);color:var(--blue);font-weight:700;font-size:12px;border-radius:6px;cursor:pointer">
+              ⚡ Scan
+            </button>
+          </div>
         </div>
 
         <!-- Video feed -->
@@ -788,15 +795,15 @@
           <!-- Idle placeholder -->
           <div id="ar-placeholder" style="padding:40px;text-align:center;color:var(--text3)">
             <div style="font-size:48px;margin-bottom:12px">📷</div>
-            <div style="font-size:14px">Click <strong style="color:var(--neon)">Live AR</strong> to start your camera</div>
-            <div style="font-size:12px;margin-top:6px">Or use Photo mode to upload an image</div>
+            <div style="font-size:14px">Click <strong style="color:var(--neon)">▶ Start</strong> to activate your camera</div>
+            <div style="font-size:12px;margin-top:6px">Point at anything with a price — AI scans every 10s</div>
           </div>
 
-          <!-- Animated scan line (shown during active scan) -->
+          <!-- Animated scan line -->
           <div id="ar-scanline" style="display:none;position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--neon),transparent);top:0;animation:scanline 2s linear infinite;pointer-events:none"></div>
 
           <!-- LIVE badge -->
-          <div id="ar-live-badge" style="display:none;position:absolute;top:10px;left:10px;background:rgba(244,63,94,.9);color:white;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:1px;display:none;align-items:center;gap:6px">
+          <div id="ar-live-badge" style="display:none;position:absolute;top:10px;left:10px;background:rgba(244,63,94,.9);color:white;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:1px;align-items:center;gap:6px">
             <span style="width:7px;height:7px;background:white;border-radius:50%;display:inline-block;animation:pulse 1s infinite"></span>
             LIVE
           </div>
@@ -813,20 +820,14 @@
             </svg>
             <div id="ar-countdown-num" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:700;color:var(--neon);font-family:JetBrains Mono"></div>
           </div>
-
-          <!-- Stop button (shown when live) -->
-          <button id="ar-stop-btn" onclick="stopLiveAR()" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(244,63,94,.85);border:none;color:white;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-            ✕ Stop
-          </button>
         </div>
 
-        <!-- Photo mode fallback buttons (hidden during live) -->
-        <div id="ar-photo-mode" style="padding:16px;display:flex;gap:8px">
+        <!-- Upload fallback + status -->
+        <div style="padding:12px 16px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--border)">
           <input type="file" id="ar-file" accept="image/*" style="display:none" onchange="arAnalyzeFile(this)"/>
-          <button class="camera-btn" style="flex:1" onclick="document.getElementById('ar-file').click()">📁 Upload Photo</button>
-          <button class="camera-btn" style="flex:1;background:rgba(0,255,179,.08);border-color:var(--border-glow);color:var(--neon)" onclick="arCaptureNow()">⚡ Scan Now</button>
+          <button class="camera-btn" style="padding:6px 14px;font-size:12px" onclick="document.getElementById('ar-file').click()">📁 Upload Photo</button>
+          <div id="ar-scan-status" style="font-size:12px;color:var(--text3);flex:1"></div>
         </div>
-        <div id="ar-scan-status" style="padding:0 16px 14px;font-size:12px;color:var(--text3);min-height:18px"></div>
       </div>
 
       <!-- RIGHT: Live Financial Overlay -->
@@ -1316,12 +1317,6 @@ function loadArVision() {
   if (fileIn) fileIn.onchange = () => arAnalyzeFile(fileIn);
 }
 
-function switchToPhotoMode() {
-  stopLiveAR();
-  // Small delay so the photo mode div is visible before opening picker
-  setTimeout(() => document.getElementById('ar-file').click(), 150);
-}
-
 async function startLiveAR() {
   if (arStream) return;
   try {
@@ -1342,13 +1337,10 @@ async function startLiveAR() {
   document.getElementById('ar-scanline').style.display       = 'block';
   document.getElementById('ar-live-badge').style.display     = 'flex';
   document.getElementById('ar-countdown-wrap').style.display = 'block';
-  document.getElementById('ar-stop-btn').style.display       = 'block';
-  document.getElementById('ar-photo-mode').style.display     = 'none';
+  document.getElementById('ar-stop-top').style.display       = 'inline-block';
+  document.getElementById('ar-btn-live').style.display       = 'none';
   document.getElementById('ar-waiting').style.display        = 'none';
   document.getElementById('ar-scan-status').textContent      = '';
-
-  document.getElementById('ar-btn-live').style.cssText  = 'flex:1;padding:12px;background:rgba(0,255,179,.15);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)';
-  document.getElementById('ar-btn-photo').style.cssText = 'flex:1;padding:12px;background:none;border:none;color:var(--text3);font-weight:600;font-size:13px;cursor:pointer';
 
   toast('📹 Live AR started — scanning every ' + AR_INTERVAL_SEC + 's', 'ok');
   arScanFrame();
@@ -1369,12 +1361,9 @@ function stopLiveAR() {
   document.getElementById('ar-scanline').style.display       = 'none';
   document.getElementById('ar-live-badge').style.display     = 'none';
   document.getElementById('ar-countdown-wrap').style.display = 'none';
-  document.getElementById('ar-stop-btn').style.display       = 'none';
-  document.getElementById('ar-photo-mode').style.display     = 'flex';
+  document.getElementById('ar-stop-top').style.display       = 'none';
+  document.getElementById('ar-btn-live').style.display       = 'inline-block';
   document.getElementById('ar-scan-status').textContent      = '';
-
-  document.getElementById('ar-btn-live').style.cssText  = 'flex:1;padding:12px;background:rgba(0,255,179,.08);border:none;color:var(--neon);font-weight:700;font-size:13px;cursor:pointer;border-right:1px solid var(--border)';
-  document.getElementById('ar-btn-photo').style.cssText = 'flex:1;padding:12px;background:rgba(79,140,255,.08);border:none;color:var(--blue);font-weight:700;font-size:13px;cursor:pointer';
 }
 
 function arStartCountdown() {
