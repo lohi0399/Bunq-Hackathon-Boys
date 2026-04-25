@@ -3,12 +3,14 @@
 > **Your AI-powered financial lens.** Point at a receipt to log it. Point at a product to know if you can afford it. Built on bunq's sandbox API and Claude's multimodal AI.
 
 **Submission for [bunq Hackathon 7.0 — Multimodal AI](https://bunq-hackathon-7-0.devpost.com/)**  
-**Branch:** `main` · **Team:** Bunq-Hackathon-Boys
+**Team:** Bunq-Hackathon-Boys  
+**GitHub:** [github.com/lohi0399/Bunq-Hackathon-Boys](https://github.com/lohi0399/Bunq-Hackathon-Boys)
 
 ---
 
 ## Table of Contents
 
+- [Hackathon Submission Summary](#hackathon-submission-summary)
 - [The Idea](#the-idea)
 - [Core Features](#core-features)
 - [Demo](#demo)
@@ -21,6 +23,50 @@
 - [bunq Integration](#bunq-integration)
 - [Database Schema](#database-schema)
 - [Design Decisions](#design-decisions)
+
+---
+
+## Hackathon Submission Summary
+
+### Problem We Are Solving
+
+Most people have no idea where their money actually goes. Receipts pile up unlogged, spending categories blur together, and impulse purchases go unquestioned. The gap between "I think I can afford this" and "I actually can afford this" costs people real money every day. Manual expense tracking is too slow and too boring to sustain — people give up within days.
+
+**Three specific pain points Lenz targets:**
+1. **Receipt logging is manual and tedious** — people photograph receipts but never enter them anywhere.
+2. **In-store impulse decisions are made blind** — no one checks their bank balance before picking up a product.
+3. **Financial awareness is passive** — dashboards show history, but nothing intervenes at the moment of spending.
+
+### Our Solution
+
+**Lenz** is an AI-powered financial lens that turns your phone's camera into a real-time financial advisor connected to your live bank account.
+
+- **Scan a receipt** → Claude's vision model reads the image, extracts merchant, amount, line items, and category, then logs it as a real bunq payment request in one click.
+- **Point at any product** → Claude identifies the product and estimates its price from the image. Lenz then fetches your actual live bunq balance, runs the affordability math server-side, and delivers an instant verdict: can you afford it, how many hours of work does it cost, what would that money be worth invested in 10 years, and have you bought something similar recently?
+
+Everything is persisted in SQLite and visualised on a live dashboard with spending breakdowns.
+
+### How AI Is Used (Core, Not Add-On)
+
+AI is **essential** to how Lenz functions — the product cannot exist without it:
+
+| Feature | Why AI is required |
+|---|---|
+| Receipt scanning | A receipt is an *image*. There is no structured data to parse without a vision model. Claude extracts merchant, amount, date, currency, and line items from a photograph. |
+| Product identification | When a user points at a product, the only input is a *camera frame*. Claude identifies what the object is and estimates its price — no barcode, no text input. |
+| Spending context reasoning | Claude incorporates the user's actual monthly spend by category (injected from the DB) into its verdict, so the advice is personalised, not generic. |
+| Duplicate purchase detection | Claude determines whether a newly scanned item is semantically similar to past purchases — a task that requires language understanding, not string matching. |
+
+We use two models optimised for their roles: `claude-opus-4-5` for receipt parsing (accuracy over speed) and `claude-haiku-4-5` for live camera scanning (speed under 1 second).
+
+### How Non-Text Modality Is Integrated
+
+**Image is the primary input modality for both core features:**
+
+- **Receipt AI** — users upload or photograph a physical receipt. The raw image (JPEG/PNG/WebP) is base64-encoded and sent directly to Claude's vision endpoint. No OCR pre-processing, no text extraction — Claude reads the image.
+- **Lenz AI** — users point their phone camera at any physical product in the real world. The camera frame is captured via the browser `MediaDevices` API, encoded, and sent to Claude. The AI identifies the object and price from the visual alone.
+
+The PWA camera integration means this works on mobile with zero installation — point, scan, get a verdict. The non-text modality is not a demo gimmick; it is the only viable UX for both use cases (you cannot type a receipt or type what a product is).
 
 ---
 
@@ -77,6 +123,8 @@ Multi-user support with bcrypt password hashing. Each user has their own bunq sa
 ---
 
 ## Demo
+
+**Demo Video:** [Watch on YouTube / Devpost](#) *(2–4 min walkthrough of all core features)*
 
 ```
 Desktop: http://localhost:5000
