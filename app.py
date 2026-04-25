@@ -570,42 +570,21 @@ def log_to_bunq():
     category    = data.get("category") or "OTHER"
     description = data.get("description") or f"{merchant} [{category}]"
     description = description[:140]
-    account_type = str(data.get("account_type") or "current").lower()
 
-    if currency != BUNQ_CURRENCY:
-        description = f"[orig: {currency} {amount_raw:.2f}] {description}"[:140]
-
-    try:
-        client = _get_client()
-        accs = _ensure_two_accounts(client)
-        account_id = accs[account_type if account_type in accs else "current"]["id"]
-        resp = client.post(
-            f"user/{client.user_id}/monetary-account/{account_id}/request-inquiry",
-            {
-                "amount_inquired": {"value": f"{amount_raw:.2f}", "currency": BUNQ_CURRENCY},
-                "counterparty_alias": {"type": "EMAIL", "value": "sugardaddy@bunq.com", "name": "Sugar Daddy"},
-                "description": description,
-                "allow_bunqme": False,
-            },
-        )
-        request_id = str(resp[0].get("Id", {}).get("id", "?"))
-
-        # Persist to local DB
-        import json as _json
-        receipt_id = db.save_receipt(
-            user_id=current_user.id,
-            merchant=merchant,
-            amount=amount_raw,
-            currency=currency,
-            category=category,
-            receipt_date=data.get("date"),
-            description=description,
-            bunq_request_id=request_id,
-            items_json=_json.dumps(data.get("items") or []),
-        )
-        return jsonify({"success": True, "request_id": request_id, "receipt_db_id": receipt_id})
-    except Exception as e:
-        return _handle_bunq_error(e)
+    # Save to local DB only — receipts are for categorisation, not financial transactions
+    import json as _json
+    receipt_id = db.save_receipt(
+        user_id=current_user.id,
+        merchant=merchant,
+        amount=amount_raw,
+        currency=currency,
+        category=category,
+        receipt_date=data.get("date"),
+        description=description,
+        bunq_request_id=None,
+        items_json=_json.dumps(data.get("items") or []),
+    )
+    return jsonify({"success": True, "receipt_db_id": receipt_id})
 
 
 @app.route("/api/receipts")
@@ -737,62 +716,6 @@ def xray_vision():
 def xray_history():
     limit = min(int(request.args.get("limit", 20)), 100)
     return jsonify(db.list_xray_scans(user_id=current_user.id, limit=limit))
-
-
-# ── Spending Insights (bunq API) ──────────────────────────────────────────────
-
-@app.route("/api/insights")
-@login_required
-def get_insights():
-    """Fetch categorized spending insights from bunq for current month."""
-    from datetime import datetime, timedelta
-    
-    # Default to current month
-    today = datetime.today()
-    month_start = today.replace(day=1).strftime("%Y-%m-%d 00:00:00")
-    next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
-    month_end = next_month.strftime("%Y-%m-%d 00:00:00")
-    
-    try:
-        client = _get_client()
-        insights = client.get(
-            f"user/{client.user_id}/insights",
-            params={
-                "time_start": month_start,
-                "time_end": month_end,
-            },
-        )
-        
-        # Parse and format insights data
-        categories = []
-        total_spent = 0.0
-        for item in insights or []:
-            ins = item.get("InsightCategory", item)
-            cat_obj = ins.get("category", {})
-            category = cat_obj.get("category", "UNKNOWN") if isinstance(cat_obj, dict) else str(cat_obj)
-            count = ins.get("number_of_transactions", 0)
-            amount_obj = ins.get("amount_total", ins.get("total_amount", {}))
-            value = float(amount_obj.get("value", 0)) if isinstance(amount_obj, dict) else 0.0
-            currency = amount_obj.get("currency", "EUR") if isinstance(amount_obj, dict) else "EUR"
-            
-            if value != 0:
-                categories.append({
-                    "category": category,
-                    "transactions": count,
-                    "amount": abs(value),
-                    "currency": currency,
-                })
-                total_spent += abs(value)
-        
-        return jsonify({
-            "period": {"start": month_start, "end": month_end},
-            "categories": categories,
-            "total": total_spent,
-            "currency": "EUR",
-        })
-    
-    except Exception as e:
-        return jsonify({"error": str(e), "categories": [], "total": 0}), 500
 
 
 # ── AR Bank Vision (AI-powered financial guidance) ────────────────────────────
@@ -992,7 +915,7 @@ if __name__ == "__main__":
                 local_ip = "<check-ifconfig>"
     
     print(f"\n  ┌──────────────────────────────────────────────────────────")
-    print(f"  │  ReceiptAI — bunq Hackathon 7.0")
+    print(f"  │  Lenz — bunq Hackathon 7.0")
     print(f"  ├──────────────────────────────────────────────────────────")
     print(f"  │  Desktop:  http://localhost:{port}")
     print(f"  │  Mobile:   http://{local_ip}:{port}  (same WiFi)")

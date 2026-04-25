@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
-  <title>ReceiptAI — bunq Hackathon 7.0</title>
+  <title>Lenz — bunq Hackathon 7.0</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -447,8 +447,8 @@
 <!-- ══ HEADER ══ -->
 <header>
   <button class="mob-menu-btn" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
-  <div class="logo-mark">b</div>
-  <span class="logo-text">ReceiptAI</span>
+  <div class="logo-mark">L</div>
+  <span class="logo-text">Lenz</span>
   <div class="header-right">
     <div class="status-chip"><div class="live-dot"></div>LIVE</div>
     <span id="hdr-savings" title="Savings">S —</span>
@@ -506,11 +506,6 @@
     <span class="nav-icon">🔗</span><span class="nav-label">bunq.me Link</span>
   </button>
 
-  <div class="nav-section">Analytics</div>
-  <button class="nav-item" data-page="insights" onclick="nav('insights',this)">
-    <span class="nav-icon">📊</span><span class="nav-label">Spending Insights</span>
-  </button>
-
   <div class="nav-section">History</div>
   <button class="nav-item" data-page="history" onclick="nav('history',this)">
     <span class="nav-icon">🗂</span><span class="nav-label">Scan History</span>
@@ -529,7 +524,7 @@
   <div class="page active" id="page-dashboard">
     <div class="page-header">
       <div class="page-title">Dashboard</div>
-      <div class="page-sub">bunq sandbox • real-time account view</div>
+      <div class="page-sub">bunq sandbox • see through your spending</div>
     </div>
 
     <div class="g3" style="margin-bottom:14px">
@@ -598,15 +593,7 @@
             <span class="change-link" id="change-btn">↩ Change image</span>
           </div>
 
-          <div class="fgroup" style="margin-top:12px">
-            <label>Log to Account</label>
-            <select id="r-account">
-              <option value="current">Current Account</option>
-              <option value="savings">Savings Account</option>
-            </select>
-          </div>
-
-          <button class="btn btn-primary btn-full" id="analyze-btn" disabled>
+          <button class="btn btn-primary btn-full" id="analyze-btn" disabled style="margin-top:12px">
             <span id="analyze-lbl">✦ Analyse with Claude AI</span>
           </button>
         </div>
@@ -947,19 +934,6 @@
     </div><!-- /ar-grid -->
   </div>
 
-  <!-- ─── SPENDING INSIGHTS ─── -->
-  <div class="page" id="page-insights">
-    <div class="page-header">
-      <div class="page-title">📊 Spending Insights</div>
-      <div class="page-sub">Categorized spending breakdown for this month</div>
-    </div>
-    <div class="card">
-      <div id="insights-body">
-        <div class="empty"><div class="empty-icon">📊</div>Loading insights...</div>
-      </div>
-    </div>
-  </div>
-
   <!-- ─── HISTORY ─── -->
   <div class="page" id="page-history">
     <div class="page-header">
@@ -1029,7 +1003,6 @@ function nav(id, btn) {
   if (id === 'transactions') loadTransactions();
   if (id === 'history') { loadHistReceipts(); loadHistXray(); }
   if (id === 'xray') loadXrayHistory();
-  if (id === 'insights') loadInsights();
   if (id === 'ar-vision') loadArVision();
 }
 function navBtn(id) { return document.querySelector(`[data-page="${id}"]`); }
@@ -1328,7 +1301,7 @@ function renderReceipt(d) {
     <div class="fgroup"><label>Bank note</label>
       <input id="r-desc" type="text" maxlength="140" value="${esc(d.description||'')}"/>
     </div>
-    <button class="btn btn-primary btn-full" id="log-btn">💳 Log to bunq</button>
+    <button class="btn btn-primary btn-full" id="log-btn">� Save Receipt</button>
     <div id="log-res" class="rbox"></div>`;
   document.getElementById('log-btn').addEventListener('click', logToBunq);
 }
@@ -1336,21 +1309,20 @@ function renderReceipt(d) {
 async function logToBunq() {
   if(!lastResult) return;
   const desc = document.getElementById('r-desc')?.value || lastResult.description;
-  const acct = document.getElementById('r-account').value;
   const btn = document.getElementById('log-btn');
-  btn.disabled=true; btn.innerHTML='<div class="spin light"></div> Logging…';
+  btn.disabled=true; btn.innerHTML='<div class="spin light"></div> Saving…';
   try {
     const d = await api('/api/log-to-bunq',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({...lastResult, description:desc, account_type:acct})});
+      body:JSON.stringify({...lastResult, description:desc})});
     const r=document.getElementById('log-res');
     r.style.display='block'; r.className='rbox ok';
-    r.innerHTML=`✓ Logged — bunq request <span class="rval">#${esc(String(d.request_id))}</span>`;
-    btn.style.display='none'; toast('Expense logged to bunq!');
-    loadStatus(); loadRecentReceipts();
+    r.innerHTML=`✓ Receipt saved — ID <span class="rval">#${esc(String(d.receipt_db_id))}</span>`;
+    btn.style.display='none'; toast('Receipt saved!');
+    loadRecentReceipts();
   } catch(e){
     const r=document.getElementById('log-res');
     r.style.display='block'; r.className='rbox err'; r.textContent=e.message;
-    btn.disabled=false; btn.textContent='💳 Log to bunq'; toast(e.message,'err');
+    btn.disabled=false; btn.textContent='💾 Save Receipt'; toast(e.message,'err');
   }
 }
 
