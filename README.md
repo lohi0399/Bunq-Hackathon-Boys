@@ -3,7 +3,7 @@
 > **Your AI-powered financial lens.** Point at a receipt to log it. Point at a product to know if you can afford it. Built on bunq's sandbox API and Claude's multimodal AI.
 
 **Submission for [bunq Hackathon 7.0 — Multimodal AI](https://bunq-hackathon-7-0.devpost.com/)**  
-**Branch:** `receipt-ai` · **Team:** Bunq-Hackathon-Boys
+**Branch:** `main` · **Team:** Bunq-Hackathon-Boys
 
 ---
 
@@ -33,7 +33,7 @@ Most people have no idea where their money goes. Receipts pile up, spending cate
 - **Scan a receipt** → Claude reads it, categorises it, and logs the expense directly to your bunq account
 - **Point at any product** → Lenz AI (powered by Claude Haiku) instantly tells you if you can afford it, how many hours of work it costs, what the S&P 500 would make of that money in 10 years, and whether you've bought something similar recently
 
-Everything is persistent: receipts, spending categories, AI feedback — all stored locally in SQLite and visualised on a live dashboard.
+Everything is persistent: receipts, spending categories, AI feedback, all stored locally in SQLite and visualised on a live dashboard.
 
 ---
 
@@ -47,7 +47,7 @@ Upload or photograph any receipt. Claude's vision model extracts:
 
 One click logs it as a payment request to your **real bunq sandbox account** via the bunq REST API. All receipts are stored in SQLite and shown on a searchable history page with a **live SVG category donut chart**.
 
-### 2. Lenz AI — Real-Time AR Financial Guidance
+### 2. Lenz AI : Real-Time AR Financial Guidance
 Point your camera (or upload a photo) at any physical product. Claude Haiku processes the image and returns:
 - **Item identification** — name, brand, category, price estimate or visible price tag
 - **Affordability verdict** — can you afford it right now? (calculated from your live bunq balance, not guessed by AI)
@@ -56,7 +56,7 @@ Point your camera (or upload a photo) at any physical product. Claude Haiku proc
 - **Worth it verdict** — a hard yes/no with reasoning, incorporating your actual spending history from the previous month
 - **Duplicate purchase warning** — automatically checks if you've bought something similar in the last 30–90 days (smart window based on product category: 90 days for electronics/appliances, 30 days for everything else)
 
-The affordability logic is **server-side math** — we never trust the AI's opinion on whether you can afford something. We fetch your actual bunq balance and do the arithmetic ourselves.
+The affordability logic is **server-side math**  we never trust the AI's opinion on whether you can afford something. We fetch your actual bunq balance and do the arithmetic ourselves.
 
 ### 3. Full Banking Dashboard
 A complete view of your bunq finances:
@@ -176,7 +176,7 @@ Bunq-Hackathon-Boys/
 ### Prerequisites
 - Python 3.10+
 - An [Anthropic API key](https://platform.anthropic.com) with credits
-- That's it — bunq sandbox credentials are auto-created for each user
+- Bunq sandbox credentials are auto-created for each user
 
 ### 1. Clone & install
 
@@ -217,7 +217,7 @@ Output:
 ### 4. Register & go
 
 1. Open http://localhost:5000
-2. Click **Register** — bunq sandbox credentials are provisioned automatically
+2. Click **Register** bunq sandbox credentials are provisioned automatically
 3. You now have a Savings account + Current account in the bunq sandbox
 
 ---
@@ -247,12 +247,12 @@ Output:
 
 ## AI Models Used
 
-### Receipt AI — `claude-opus-4-5`
-Used for thorough receipt parsing. The prompt asks Claude to return structured JSON with merchant, amount, currency, date, category, and an array of line items. We use opus here because receipt text can be blurry, rotated, or in any language — it needs the best model.
+### Receipt AI  `claude-opus-4-5`
+Used for thorough receipt parsing. The prompt asks Claude to return structured JSON with merchant, amount, currency, date, category, and an array of line items. We use opus here because receipt text can be blurry, rotated, or in any language.
 
 **Prompt strategy:** We provide the full category list and emoji map so Claude outputs a valid category enum every time. Line items are parsed as `[{name, price}]` and stored as JSON in SQLite.
 
-### Lenz AI — `claude-haiku-4-5`
+### Lenz AI `claude-haiku-4-5`
 Used for real-time camera scanning. Haiku is ~3× faster and much cheaper than Opus, making it suitable for a motion-triggered scan loop. The prompt is carefully engineered to:
 - Reject non-product images (people, animals) with a specific fallback JSON
 - Extract or estimate price in EUR
@@ -340,7 +340,7 @@ CREATE TABLE ai_feedback (
 ## Design Decisions
 
 **Why a single-page app in one HTML file?**  
-For a hackathon, the fastest path to a polished demo is zero build tooling. The entire frontend is ~2,000 lines of vanilla JS/CSS in `index.html`. No webpack, no React, no compilation step — `python app.py` and you're live.
+For a hackathon, the fastest path to a polished demo is zero build tooling. The entire frontend is ~2,000 lines of vanilla JS/CSS in `index.html`. No webpack, no React, no compilation step `python app.py` and you're live.
 
 **Why SQLite?**  
 Zero ops. No Docker, no Postgres setup for judges. The DB is a single file (`receiptai.db`) that appears automatically on first run. The `database.py` layer includes schema migrations so the DB evolves gracefully.
@@ -352,4 +352,4 @@ Receipt parsing needs accuracy (blurry text, multi-language receipts, complex la
 Large language models can hallucinate financial facts. Telling Claude "the user has €500" and asking "can they afford this?" is unreliable. Instead, we fetch the real balance from bunq and do the math ourselves, then pass that result back to the frontend. Claude only decides *what the product is and what it costs*.
 
 **PWA for mobile demo**  
-The Lenz AI feature (point camera at products) only makes sense on mobile. Making Lenz installable as a PWA means judges can add it to their home screen and use the native camera — no app store required.
+The Lenz AI feature (point camera at products) only makes sense on mobile. Making Lenz installable as a PWA means judges can add it to their home screen and use the native camera with no app store required.
