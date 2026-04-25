@@ -247,7 +247,27 @@
     @keyframes scanline{0%{top:0%}100%{top:100%}}
     @keyframes ar-fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .ar-result-enter{animation:ar-fade-in .35s ease both}
-    /* AR grid: single column on small screens */
+
+    /* ── Page fade-in transition ── */
+    .page.active{animation:page-fade .2s ease both}
+    @keyframes page-fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+    /* ── Card hover lift ── */
+    .card{transition:border-color .18s,box-shadow .18s}
+    .card:hover{border-color:var(--border-hi);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+
+    /* ── Stat pop animation ── */
+    @keyframes count-pop{0%{transform:scale(.85);opacity:.3}100%{transform:scale(1);opacity:1}}
+    .stat-val.popped{animation:count-pop .4s cubic-bezier(.34,1.56,.64,1) both}
+
+    /* ── AR alternative comparison ── */
+    .ar-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .ar-compare-cell{border-radius:8px;padding:10px;font-size:12px}
+    .ar-buy-links{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+    .ar-buy-link{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;
+      border-radius:6px;font-size:10px;font-weight:700;text-decoration:none;
+      font-family:var(--mono);letter-spacing:.3px;transition:opacity .13s,transform .13s}
+    .ar-buy-link:hover{opacity:.8;transform:translateY(-1px)}
     @media(max-width:700px){ #ar-grid{ grid-template-columns:1fr !important } }
     .sk{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);
       background-size:200% 100%;border-radius:6px;
@@ -1038,6 +1058,23 @@ function esc(s) {
   return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+// Animated number count-up
+function countUp(el, target, prefix='', decimals=0) {
+  const duration = 650;
+  const startTime = performance.now();
+  el.classList.remove('popped');
+  void el.offsetWidth; // reflow to restart animation
+  el.classList.add('popped');
+  function step(now) {
+    const pct = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - pct, 3);
+    el.textContent = prefix + (target * ease).toFixed(decimals);
+    if (pct < 1) requestAnimationFrame(step);
+    else el.textContent = prefix + target.toFixed(decimals);
+  }
+  requestAnimationFrame(step);
+}
 let toastT;
 function toast(msg, type='ok') {
   clearTimeout(toastT);
@@ -1067,9 +1104,9 @@ async function loadStatus() {
   try {
     const d = await api('/api/status');
     document.getElementById('d-uid').textContent  = d.user_id;
-    document.getElementById('d-sav').textContent  = `€${fmt(d.savings_balance)}`;
-    document.getElementById('d-cur').textContent  = `€${fmt(d.current_balance)}`;
-    document.getElementById('d-recs').textContent = d.receipt_count;
+    countUp(document.getElementById('d-sav'),  parseFloat(d.savings_balance||0),  '€', 2);
+    countUp(document.getElementById('d-cur'),  parseFloat(d.current_balance||0),  '€', 2);
+    countUp(document.getElementById('d-recs'), parseInt(d.receipt_count||0), '', 0);
     document.getElementById('hdr-savings').textContent = `S €${fmt(d.savings_balance)}`;
     document.getElementById('hdr-current').textContent = `C €${fmt(d.current_balance)}`;
     document.getElementById('rec-count-badge').textContent = `${d.receipt_count} saved`;
@@ -1123,18 +1160,38 @@ async function loadTransactions(dashMode=false) {
   try {
     const txns = await api(`/api/transactions?count=${count}&account=${account}`);
     if (!txns.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No transactions yet.</div>'; return; }
-    el.innerHTML = `<div class="tbl-wrap"><table>
-      <thead><tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Type</th></tr></thead>
-      <tbody>${txns.map(t=>{
-        const pos = parseFloat(t.amount||0)>0;
-        return `<tr>
-          <td class="td-mono" style="color:var(--text3);font-size:10px">${esc(t.date)}</td>
-          <td class="td-mono ${pos?'pos':'neg'}">${pos?'+':''}${esc(t.amount)} ${esc(t.currency||'EUR')}</td>
-          <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.counterparty)}</td>
-          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)">${esc(t.description)}</td>
-          <td><span class="pill ${pos?'pill-g':'pill-b'}">${esc(t.type||'—')}</span></td>
-        </tr>`;
-      }).join('')}</tbody></table></div>`;
+
+    if (dashMode) {
+      // Dashboard: compact colored mini-cards
+      el.innerHTML = txns.map(t => {
+        const pos = parseFloat(t.amount||0) > 0;
+        const amt = (pos ? '+' : '') + esc(t.amount);
+        const clr = pos ? 'var(--neon)' : 'var(--danger)';
+        const bg  = pos ? 'rgba(0,255,179,.05)' : 'rgba(244,63,94,.05)';
+        const brd = pos ? 'rgba(0,255,179,.12)' : 'rgba(244,63,94,.12)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${bg};border:1px solid ${brd};border-radius:8px;margin-bottom:6px">
+          <div style="width:32px;height:32px;border-radius:8px;background:${pos?'rgba(0,255,179,.1)':'rgba(244,63,94,.1)'};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${pos?'↓':'↑'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.counterparty||t.description||'—')}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${esc(t.date)} · ${esc(t.type||'')}</div>
+          </div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:800;color:${clr};flex-shrink:0">${amt}</div>
+        </div>`;
+      }).join('');
+    } else {
+      el.innerHTML = `<div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Type</th></tr></thead>
+        <tbody>${txns.map(t=>{
+          const pos = parseFloat(t.amount||0)>0;
+          return `<tr>
+            <td class="td-mono" style="color:var(--text3);font-size:10px">${esc(t.date)}</td>
+            <td class="td-mono ${pos?'pos':'neg'}">${pos?'+':''}${esc(t.amount)} ${esc(t.currency||'EUR')}</td>
+            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.counterparty)}</td>
+            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)">${esc(t.description)}</td>
+            <td><span class="pill ${pos?'pill-g':'pill-b'}">${esc(t.type||'—')}</span></td>
+          </tr>`;
+        }).join('')}</tbody></table></div>`;
+    }
   } catch(e) { el.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; }
 }
 
@@ -1648,17 +1705,24 @@ function renderArOverlay(d) {
   const s = STATUS[status] || STATUS.no_price_found;
   const priceStr = d.price > 0 ? '€' + Number(d.price).toFixed(2) : (d.price_range || '—');
   const balanceAfter = d.balance_after || 0;
+  const itemQ = encodeURIComponent((d.brand ? d.brand + ' ' : '') + (d.item || ''));
+  const shopUrl = 'https://www.google.com/search?tbm=shop&q=' + itemQ;
+  const amzUrl  = 'https://www.amazon.com/s?k=' + itemQ;
 
   const wrap = document.getElementById('ar-live-result-wrap');
   wrap.innerHTML =
     '<div class="card ar-result-enter" style="border:2px solid ' + s.color + ';padding:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="display:flex;gap:6px;align-items:center;margin-bottom:3px">' +
+          '<div style="display:flex;gap:6px;align-items:center;margin-bottom:3px;flex-wrap:wrap">' +
             (d.category && d.category !== 'none' ? '<span style="font-size:9px;text-transform:uppercase;letter-spacing:1px;background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.2);border-radius:4px;padding:1px 5px">' + esc(d.category) + '</span>' : '') +
             (d.brand ? '<span style="font-size:9px;text-transform:uppercase;letter-spacing:1px;background:rgba(79,140,255,.1);color:var(--blue);border:1px solid rgba(79,140,255,.2);border-radius:4px;padding:1px 5px">' + esc(d.brand) + '</span>' : '') +
           '</div>' +
-          '<div style="font-size:16px;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis">' + esc(d.item||'Unknown') + '</div>' +
+          '<div style="font-size:16px;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis;margin-bottom:6px">' + esc(d.item||'Unknown') + '</div>' +
+          '<div class="ar-buy-links">' +
+            '<a href="' + shopUrl + '" target="_blank" rel="noopener" class="ar-buy-link" style="background:rgba(79,140,255,.12);color:var(--blue);border:1px solid rgba(79,140,255,.25)">🛍 Google</a>' +
+            '<a href="' + amzUrl + '" target="_blank" rel="noopener" class="ar-buy-link" style="background:rgba(255,153,0,.1);color:#ff9900;border:1px solid rgba(255,153,0,.3)">📦 Amazon</a>' +
+          '</div>' +
         '</div>' +
         '<div style="text-align:right;margin-left:12px;flex-shrink:0">' +
           '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:2px">' + (d.price > 0 ? 'Price' : 'Est. Range') + '</div>' +
@@ -1699,10 +1763,37 @@ function renderArOverlay(d) {
         '<div style="font-size:12px;color:var(--text);line-height:1.6">' + esc(d.recommendation||'') + '</div>' +
       '</div>' +
       (d.alternative ?
-        '<div style="background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.25);border-radius:6px;padding:10px">' +
-          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--purple);margin-bottom:4px">💡 Alternative</div>' +
-          '<div style="font-size:12px;color:var(--text2)">' + esc(d.alternative) + '</div>' +
-        '</div>'
+        (function(){
+          const aq = encodeURIComponent((d.brand ? d.brand + ' ' : '') + d.item);
+          const altq = encodeURIComponent(d.alternative);
+          const altShop = 'https://www.google.com/search?tbm=shop&q=' + altq;
+          const altAmz  = 'https://www.amazon.com/s?k=' + altq;
+          const curShop = 'https://www.google.com/search?tbm=shop&q=' + aq;
+          return (
+            '<div style="margin-bottom:10px">' +
+              '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px">💡 Comparison</div>' +
+              '<div class="ar-compare">' +
+                '<div class="ar-compare-cell" style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.25)">' +
+                  '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--purple);margin-bottom:4px">Current</div>' +
+                  '<div style="font-weight:700;color:var(--text);margin-bottom:2px">' + esc(d.item) + '</div>' +
+                  '<div style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--purple)">' + (d.price > 0 ? '€' + Number(d.price).toFixed(2) : '—') + '</div>' +
+                  '<div class="ar-buy-links">' +
+                    '<a href="' + curShop + '" target="_blank" rel="noopener" class="ar-buy-link" style="background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.3)">🛍 Shop</a>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="ar-compare-cell" style="background:rgba(0,255,179,.04);border:1px solid rgba(0,255,179,.2)">' +
+                  '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--neon);margin-bottom:4px">Alternative</div>' +
+                  '<div style="font-weight:700;color:var(--text);margin-bottom:2px">' + esc(d.alternative) + '</div>' +
+                  '<div style="font-size:10px;color:var(--neon);margin-bottom:4px">Potentially cheaper</div>' +
+                  '<div class="ar-buy-links">' +
+                    '<a href="' + altShop + '" target="_blank" rel="noopener" class="ar-buy-link" style="background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.25)">🛍 Shop</a>' +
+                    '<a href="' + altAmz + '" target="_blank" rel="noopener" class="ar-buy-link" style="background:rgba(255,153,0,.1);color:#ff9900;border:1px solid rgba(255,153,0,.3)">📦 Amazon</a>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          );
+        })()
       : '') +
     '</div>' +
     (d.long_term_impact ?
