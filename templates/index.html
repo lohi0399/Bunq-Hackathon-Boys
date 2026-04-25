@@ -480,13 +480,13 @@
             </div>
           </div>
 
-          <!-- hidden file inputs -->
+          <!-- hidden file input (drag-drop / browse) -->
           <input type="file" id="file-input" accept="image/*" style="display:none"/>
           <input type="file" id="cam-input" accept="image/*" style="display:none"/>
 
-          <!-- Camera button (works on mobile AND desktop) -->
+          <!-- Camera button — opens live webcam modal on laptop + phone -->
           <div style="display:flex;gap:8px;margin-top:10px">
-            <button class="camera-btn" onclick="document.getElementById('cam-input').click()">📷 Use Camera</button>
+            <button class="camera-btn" onclick="openCamModal('receipt')">📷 Use Camera</button>
             <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('file-input').click()">📁 Browse File</button>
           </div>
 
@@ -552,7 +552,7 @@
         <input type="file" id="xray-file" accept="image/*" style="display:none"/>
         <input type="file" id="xray-cam" accept="image/*" style="display:none"/>
         <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="camera-btn" onclick="document.getElementById('xray-cam').click()">📷 Aim Camera</button>
+          <button class="camera-btn" onclick="openCamModal('xray')">📷 Aim Camera</button>
           <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('xray-file').click()">📁 Upload Photo</button>
         </div>
         <div id="xray-prev-wrap" style="display:none;margin-top:12px">
@@ -882,6 +882,35 @@
 
 </div><!-- /content -->
 </div><!-- /shell -->
+
+<!-- ═══ SHARED WEBCAM MODAL ═══════════════════════════════════════════════ -->
+<div id="cam-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border-glow);border-radius:16px;overflow:hidden;width:min(520px,95vw);box-shadow:0 0 60px rgba(0,255,179,.15)">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+      <span id="cam-modal-title" style="font-weight:700;color:var(--neon);font-size:14px">📷 Camera</span>
+      <button onclick="closeCamModal()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <!-- Video -->
+    <div style="position:relative;background:#000">
+      <video id="cam-modal-video" autoplay playsinline muted style="width:100%;max-height:320px;object-fit:cover;display:block"></video>
+      <canvas id="cam-modal-canvas" style="display:none"></canvas>
+      <!-- flash effect on capture -->
+      <div id="cam-flash" style="position:absolute;inset:0;background:white;opacity:0;pointer-events:none;transition:opacity .08s"></div>
+    </div>
+    <!-- Controls -->
+    <div style="padding:16px 18px;display:flex;gap:10px;align-items:center">
+      <button id="cam-modal-capture" onclick="camModalCapture()"
+        style="flex:1;padding:12px;background:var(--neon);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:.5px">
+        📸 Capture
+      </button>
+      <button onclick="closeCamModal()"
+        style="padding:12px 18px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
 
 <div id="toast"></div>
 
@@ -1303,14 +1332,21 @@ async function loadHistXray() {
   } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
 }
 
-// ═══ AR BANK VISION — Live Video + Auto-Scan ═════════════════════════════════
-let arStream = null;          // MediaStream from getUserMedia
-let arInterval = null;        // setInterval handle for auto-scan
-let arScanning = false;       // guard — prevent overlapping requests
-let arCountdownVal = 0;       // countdown timer value
-let arCountdownTimer = null;  // setInterval for countdown ring
+// ═══ AR BANK VISION — Motion-triggered Auto-Scan ════════════════════════════
+let arStream = null;
+let arMotionLoop = null;     // requestAnimationFrame loop ID
+let arScanning = false;      // guard against overlapping API calls
+let arPrevData = null;       // previous frame pixel data for diff
+let arStableMs = 0;          // how many ms the frame has been "stable"
+let arLastScanTime = 0;      // timestamp of last successful scan
+let arMotionCanvas = null;   // small canvas for motion detection
 
-const AR_INTERVAL_SEC = 10;   // seconds between auto-scans
+// Tuning
+const AR_MOTION_THRESHOLD = 18;   // pixel-diff per channel to count as "changed"
+const AR_MOTION_PCT_TRIGGER = 2;  // % of pixels that must differ to flag motion
+const AR_STABLE_MS = 800;         // ms of stillness before auto-capture
+const AR_COOLDOWN_MS = 6000;      // min ms between scans (avoid hammering API)
+const AR_MOTION_SIZE = 64;        // downscale to 64x36 for motion detection
 
 function loadArVision() {
   const fileIn = document.getElementById('ar-file');
@@ -1320,10 +1356,9 @@ function loadArVision() {
 async function startLiveAR() {
   if (arStream) return;
   try {
-    const constraints = {
+    arStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-    };
-    arStream = await navigator.mediaDevices.getUserMedia(constraints);
+    });
   } catch(err) {
     toast('Camera access denied: ' + err.message, 'err');
     return;
@@ -1333,30 +1368,37 @@ async function startLiveAR() {
   video.srcObject = arStream;
   video.style.display = 'block';
 
+  // Create tiny canvas for motion detection
+  arMotionCanvas = document.createElement('canvas');
+  arMotionCanvas.width  = AR_MOTION_SIZE;
+  arMotionCanvas.height = Math.round(AR_MOTION_SIZE * 9 / 16);
+
   document.getElementById('ar-placeholder').style.display    = 'none';
   document.getElementById('ar-scanline').style.display       = 'block';
   document.getElementById('ar-live-badge').style.display     = 'flex';
-  document.getElementById('ar-countdown-wrap').style.display = 'block';
+  document.getElementById('ar-countdown-wrap').style.display = 'none'; // no countdown in motion mode
   document.getElementById('ar-stop-top').style.display       = 'inline-block';
   document.getElementById('ar-btn-live').style.display       = 'none';
   document.getElementById('ar-waiting').style.display        = 'none';
-  document.getElementById('ar-scan-status').textContent      = '';
+  document.getElementById('ar-scan-status').innerHTML        =
+    '<span style="color:var(--text3)">👁 Watching for objects...</span>';
 
-  toast('📹 Live AR started — scanning every ' + AR_INTERVAL_SEC + 's', 'ok');
-  arScanFrame();
-  arStartCountdown();
-  arInterval = setInterval(() => { arScanFrame(); arStartCountdown(); }, AR_INTERVAL_SEC * 1000);
+  toast('📹 AR active — aim at an object and hold still', 'ok');
+  arPrevData = null;
+  arStableMs = 0;
+  arLastScanTime = 0;
+  arRunMotionLoop();
 }
 
 function stopLiveAR() {
   if (arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
-  clearInterval(arInterval); arInterval = null;
-  clearInterval(arCountdownTimer); arCountdownTimer = null;
+  if (arMotionLoop) { cancelAnimationFrame(arMotionLoop); arMotionLoop = null; }
 
   const video = document.getElementById('ar-video');
   video.srcObject = null;
   video.style.display = 'none';
 
+  arPrevData = null;
   document.getElementById('ar-placeholder').style.display    = 'block';
   document.getElementById('ar-scanline').style.display       = 'none';
   document.getElementById('ar-live-badge').style.display     = 'none';
@@ -1366,30 +1408,68 @@ function stopLiveAR() {
   document.getElementById('ar-scan-status').textContent      = '';
 }
 
-function arStartCountdown() {
-  clearInterval(arCountdownTimer);
-  arCountdownVal = AR_INTERVAL_SEC;
-  const ring = document.getElementById('ar-countdown-ring');
-  const num  = document.getElementById('ar-countdown-num');
-  const circumference = 94.2;
-  ring.style.strokeDashoffset = '0';
-  num.textContent = arCountdownVal;
-  arCountdownTimer = setInterval(() => {
-    arCountdownVal--;
-    num.textContent = Math.max(0, arCountdownVal);
-    const offset = circumference * (1 - arCountdownVal / AR_INTERVAL_SEC);
-    ring.style.strokeDashoffset = offset;
-    if (arCountdownVal <= 0) clearInterval(arCountdownTimer);
-  }, 1000);
+let arLastMotionTime = 0;
+function arRunMotionLoop() {
+  const video = document.getElementById('ar-video');
+  const now = performance.now();
+
+  if (video && video.readyState >= 2 && !arScanning) {
+    // Throttle motion check to every 150ms
+    if (now - arLastMotionTime > 150) {
+      arLastMotionTime = now;
+      const ctx = arMotionCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, arMotionCanvas.width, arMotionCanvas.height);
+      const frame = ctx.getImageData(0, 0, arMotionCanvas.width, arMotionCanvas.height);
+
+      if (arPrevData) {
+        const diff = arComputeDiff(frame.data, arPrevData);
+        const isMoving = diff > AR_MOTION_PCT_TRIGGER;
+
+        if (isMoving) {
+          arStableMs = 0;
+          document.getElementById('ar-scan-status').innerHTML =
+            '<span style="color:var(--amber)">📸 Hold still to scan...</span>';
+        } else {
+          arStableMs += 150;
+          const pct = Math.min(100, Math.round(arStableMs / AR_STABLE_MS * 100));
+          // Show stabilizing bar when close to capture
+          if (arStableMs > 300) {
+            document.getElementById('ar-scan-status').innerHTML =
+              '<span style="color:var(--neon)">🎯 Stabilizing ' + pct + '%...</span>';
+          }
+          // Auto-capture when stable long enough AND cooldown elapsed
+          if (arStableMs >= AR_STABLE_MS && (now - arLastScanTime) > AR_COOLDOWN_MS) {
+            arStableMs = 0;
+            arLastScanTime = now;
+            arScanFrame();
+          }
+        }
+      }
+      arPrevData = frame.data.slice(); // store copy
+    }
+  }
+
+  arMotionLoop = requestAnimationFrame(arRunMotionLoop);
+}
+
+function arComputeDiff(a, b) {
+  // Returns % of pixels that changed significantly
+  let changed = 0;
+  const total = a.length / 4;
+  for (let i = 0; i < a.length; i += 4) {
+    const dr = Math.abs(a[i]   - b[i]);
+    const dg = Math.abs(a[i+1] - b[i+1]);
+    const db = Math.abs(a[i+2] - b[i+2]);
+    if ((dr + dg + db) / 3 > AR_MOTION_THRESHOLD) changed++;
+  }
+  return (changed / total) * 100;
 }
 
 async function arCaptureNow() {
   if (!arStream) { await startLiveAR(); return; }
-  clearInterval(arInterval);
-  clearInterval(arCountdownTimer);
+  arStableMs = 0;
+  arLastScanTime = 0; // bypass cooldown
   arScanFrame();
-  arStartCountdown();
-  arInterval = setInterval(() => { arScanFrame(); arStartCountdown(); }, AR_INTERVAL_SEC * 1000);
 }
 
 async function arScanFrame() {
@@ -1402,7 +1482,6 @@ async function arScanFrame() {
     '<span style="color:var(--neon)">⚡ Detecting...</span>';
 
   const canvas = document.getElementById('ar-canvas');
-  // Downscale to max 480px wide — keeps JPEG small for fast upload & AI processing
   const MAX_W = 480;
   const scale = Math.min(1, MAX_W / (video.videoWidth || 640));
   canvas.width  = Math.round((video.videoWidth  || 640) * scale);
@@ -1419,14 +1498,15 @@ async function arScanFrame() {
       if (!r.ok) throw new Error(d.error || 'Analysis failed');
       renderArOverlay(d);
       document.getElementById('ar-scan-status').innerHTML =
-        '<span style="color:var(--text3)">Last scan: ' + new Date().toLocaleTimeString() + '</span>';
+        '<span style="color:var(--text3)">✓ ' + new Date().toLocaleTimeString() + ' — aim at next object</span>';
     } catch(e) {
       document.getElementById('ar-scan-status').innerHTML =
         '<span style="color:var(--danger)">⚠ ' + esc(e.message) + '</span>';
     } finally {
       arScanning = false;
+      arPrevData = null; // reset motion baseline after scan
     }
-  }, 'image/jpeg', 0.72);  // 0.72 quality — good enough for object recognition, much smaller file
+  }, 'image/jpeg', 0.72);
 }
 
 async function arAnalyzeFile(input) {
@@ -1523,6 +1603,66 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.page !== 'ar-vision' && arStream) stopLiveAR();
   });
+});
+
+// ═══ SHARED WEBCAM MODAL ══════════════════════════════════════════════════════
+let camModalStream = null;
+let camModalTarget = null; // 'receipt' | 'xray'
+
+async function openCamModal(target) {
+  camModalTarget = target;
+  document.getElementById('cam-modal-title').textContent =
+    target === 'receipt' ? '📷 Capture Receipt' : '📷 Capture Item';
+  document.getElementById('cam-modal').style.display = 'flex';
+
+  try {
+    camModalStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    document.getElementById('cam-modal-video').srcObject = camModalStream;
+  } catch(err) {
+    closeCamModal();
+    toast('Camera access denied: ' + err.message, 'err');
+  }
+}
+
+function closeCamModal() {
+  if (camModalStream) { camModalStream.getTracks().forEach(t => t.stop()); camModalStream = null; }
+  document.getElementById('cam-modal-video').srcObject = null;
+  document.getElementById('cam-modal').style.display = 'none';
+}
+
+function camModalCapture() {
+  const video  = document.getElementById('cam-modal-video');
+  const canvas = document.getElementById('cam-modal-canvas');
+  if (!video || video.readyState < 2) return;
+
+  // Flash effect
+  const flash = document.getElementById('cam-flash');
+  flash.style.opacity = '0.85';
+  setTimeout(() => flash.style.opacity = '0', 80);
+
+  // Capture at 800px wide
+  const MAX_W = 800;
+  const scale = Math.min(1, MAX_W / (video.videoWidth || 640));
+  canvas.width  = Math.round((video.videoWidth  || 640) * scale);
+  canvas.height = Math.round((video.videoHeight || 480) * scale);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  canvas.toBlob(blob => {
+    closeCamModal();
+    const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+    if (camModalTarget === 'receipt') {
+      loadReceiptFile(file);
+    } else if (camModalTarget === 'xray') {
+      loadXrayFile(file);
+    }
+  }, 'image/jpeg', 0.88);
+}
+
+// Close modal on backdrop click
+document.getElementById('cam-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeCamModal();
 });
 
 
