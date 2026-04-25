@@ -80,6 +80,17 @@ def init_db() -> None:
                 created_at       TEXT    NOT NULL,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
+
+            CREATE TABLE IF NOT EXISTS ai_feedback (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL,
+                message_id     TEXT    NOT NULL,
+                source         TEXT    NOT NULL,
+                rating         INTEGER NOT NULL,
+                context_json   TEXT,
+                created_at     TEXT    NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
         """)
 
 
@@ -173,15 +184,24 @@ def list_xray_scans(user_id: int, limit: int = 20) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def category_spending(user_id: int) -> list[dict]:
-    """Return per-category totals for a user: category, count, total_amount."""
+def category_spending(user_id: int, month_start: str | None = None, month_end: str | None = None) -> list[dict]:
+    """Return per-category totals for a user within an optional date range (ISO strings)."""
     with _conn() as con:
-        rows = con.execute(
-            """SELECT category, COUNT(*) as count, SUM(amount) as total_amount
-               FROM receipts WHERE user_id = ?
-               GROUP BY category ORDER BY total_amount DESC""",
-            (user_id,)
-        ).fetchall()
+        if month_start and month_end:
+            rows = con.execute(
+                """SELECT category, COUNT(*) as count, SUM(amount) as total_amount
+                   FROM receipts WHERE user_id = ?
+                   AND created_at >= ? AND created_at < ?
+                   GROUP BY category ORDER BY total_amount DESC""",
+                (user_id, month_start, month_end)
+            ).fetchall()
+        else:
+            rows = con.execute(
+                """SELECT category, COUNT(*) as count, SUM(amount) as total_amount
+                   FROM receipts WHERE user_id = ?
+                   GROUP BY category ORDER BY total_amount DESC""",
+                (user_id,)
+            ).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -192,11 +212,78 @@ def clear_receipts(user_id: int) -> int:
         return cur.rowcount
 
 
+def find_matching_items(user_id: int, query: str, days: int) -> list[dict]:
+    """
+    Search receipt line-items for anything resembling `query` within the last `days`.
+    Returns a list of matches: {merchant, receipt_date, item_name, item_price, currency, days_ago}.
+    Uses simple case-insensitive keyword overlap — good enough for hackathon.
+    """
+    import json as _json
+    from datetime import datetime, timezone, timedelta
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+    with _conn() as con:
+        rows = con.execute(
+            """SELECT merchant, currency, receipt_date, created_at, items_json
+               FROM receipts WHERE user_id = ? AND created_at >= ? AND items_json IS NOT NULL""",
+            (user_id, cutoff),
+        ).fetchall()
+
+    # tokenise query into lowercase keywords, drop short words
+    q_words = {w for w in query.lower().split() if len(w) > 2}
+    matches = []
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        try:
+            items = _json.loads(row["items_json"] or "[]")
+        except Exception:
+            continue
+        for item in items:
+            name = str(item.get("name", "")).lower()
+            name_words = {w for w in name.split() if len(w) > 2}
+            # match if any query keyword appears in item name or vice-versa
+            if q_words & name_words:
+                rec_date_str = row["receipt_date"] or row["created_at"][:10]
+                try:
+                    rec_dt = datetime.strptime(rec_date_str[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    days_ago = (now - rec_dt).days
+                except Exception:
+                    days_ago = 0
+                matches.append({
+                    "merchant":   row["merchant"],
+                    "receipt_date": rec_date_str,
+                    "item_name":  item.get("name", ""),
+                    "item_price": float(item.get("price", 0)),
+                    "currency":   row["currency"],
+                    "days_ago":   days_ago,
+                })
+    # deduplicate by item_name, keep most recent
+    seen = {}
+    for m in matches:
+        k = m["item_name"].lower()
+        if k not in seen or m["days_ago"] < seen[k]["days_ago"]:
+            seen[k] = m
+    return list(seen.values())
+
+
 def clear_xray_scans(user_id: int) -> int:
     """Delete all X-Ray scans for a user. Returns number of rows deleted."""
     with _conn() as con:
         cur = con.execute("DELETE FROM xray_scans WHERE user_id = ?", (user_id,))
         return cur.rowcount
+
+
+# ── AI Feedback ───────────────────────────────────────────────────────────────
+
+def save_feedback(user_id: int, message_id: str, source: str, rating: int, context_json: str | None = None) -> int:
+    """Save a thumbs up (1) or thumbs down (-1) for an AI response. Returns row id."""
+    with _conn() as con:
+        cur = con.execute(
+            """INSERT INTO ai_feedback (user_id, message_id, source, rating, context_json, created_at)
+               VALUES (?,?,?,?,?,?)""",
+            (user_id, message_id, source, rating, context_json, _now()),
+        )
+        return cur.lastrowid
 
 
 # ── Users (IBAN-based, no password) ──────────────────────────────────────────

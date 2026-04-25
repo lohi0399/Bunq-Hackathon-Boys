@@ -588,6 +588,8 @@ def analyze():
         result["category"] = "OTHER"
     result["emoji"] = CATEGORY_EMOJI[result["category"]]
     result["items"] = result.get("items") or []
+    result["_message_id"] = message.id
+    result["_source"] = "receipt"
     return jsonify(result)
 
 
@@ -742,6 +744,8 @@ def xray_vision():
         ai_description=item_data.get("description", ""),
     )
 
+    result["_message_id"] = message.id
+    result["_source"] = "xray"
     return jsonify(result)
 
 
@@ -772,7 +776,7 @@ def clear_xray():
 @login_required
 def ar_bank_vision():
     """
-    AR Bank Vision — Point camera at anything and get instant financial guidance.
+    Lenz AI — Point camera at anything and get instant financial guidance.
     
     Analyzes what you're looking at and provides:
     - Affordability check (can you afford it?)
@@ -811,24 +815,34 @@ def ar_bank_vision():
         savings_balance = 500.0
         current_balance = 500.0
 
-    # Pull real category spending history for this user
-    cat_rows = db.category_spending(current_user.id)
+    # Pull last month's category spending for this user
+    from calendar import monthrange
+    _now_dt = time.gmtime()
+    _prev_month = _now_dt.tm_mon - 1 or 12
+    _prev_year  = _now_dt.tm_year if _now_dt.tm_mon > 1 else _now_dt.tm_year - 1
+    _days_in_prev = monthrange(_prev_year, _prev_month)[1]
+    _month_start = f"{_prev_year}-{_prev_month:02d}-01T00:00:00"
+    _month_end   = f"{_prev_year}-{_prev_month:02d}-{_days_in_prev:02d}T23:59:59"
+    import calendar as _cal
+    _month_label = f"{_cal.month_name[_prev_month]} {_prev_year}"
+
+    cat_rows = db.category_spending(current_user.id, _month_start, _month_end)
     cat_total_spend = sum(r["total_amount"] for r in cat_rows)
     if cat_rows:
         cat_lines = "\n".join(
-            f"  - {r['category']}: {r['count']} receipt(s), €{r['total_amount']:.2f} spent"
+            f"  - {r['category']}: {r['count']} receipt(s), \u20ac{r['total_amount']:.2f} spent"
             for r in cat_rows
         )
         cat_context = (
-            f"USER'S REAL SPENDING HISTORY ({len(cat_rows)} categories, €{cat_total_spend:.2f} total scanned):\n"
+            f"USER'S SPENDING THIS MONTH ({_month_label}, {len(cat_rows)} categories, \u20ac{cat_total_spend:.2f} total):\n"
             + cat_lines + "\n"
             "Use this to judge whether they tend to overspend in this product's category.\n"
             "If the item's category matches a high-spend category, flag it in the recommendation.\n"
         )
     else:
-        cat_context = "USER'S SPENDING HISTORY: No receipts scanned yet — no category data available.\n"
+        cat_context = f"USER'S SPENDING HISTORY ({_month_label}): No receipts scanned this month \u2014 no category data available.\n"
 
-    # AI Prompt for AR Bank Vision
+    # AI Prompt for Lenz AI
     prompt = (
         "You are an AR product scanner for consumer goods and retail items.\n"
         "CRITICAL RULES:\n"
@@ -894,6 +908,32 @@ def ar_bank_vision():
     }
     # Attach category spending context so the UI can show it
     ar_data["category_spending"] = cat_rows
+    ar_data["category_month_label"] = _month_label
+
+    # ── Duplicate purchase check ─────────────────────────────────────────────
+    # Durable goods (electronics, appliances) → 90-day window
+    # Everything else → 30-day window
+    item_name = ar_data.get("item", "") or ""
+    ar_category = (ar_data.get("category") or "").lower()
+    DURABLE = {"electronics", "appliance", "appliances", "book", "toy", "accessory", "accessories"}
+    dup_days = 90 if ar_category in DURABLE else 30
+    dup_label = "3 months" if dup_days == 90 else "month"
+
+    ar_data["duplicate_warning"] = None
+    if item_name and item_name.lower() != "none":
+        matches = db.find_matching_items(current_user.id, item_name, dup_days)
+        if matches:
+            best = min(matches, key=lambda m: m["days_ago"])
+            ar_data["duplicate_warning"] = {
+                "item_name":    best["item_name"],
+                "merchant":     best["merchant"],
+                "receipt_date": best["receipt_date"],
+                "item_price":   best["item_price"],
+                "currency":     best["currency"],
+                "days_ago":     best["days_ago"],
+                "window_label": dup_label,
+                "all_matches":  matches,
+            }
 
     # Override AI affordability with hard math — never trust AI's opinion over real balance
     if price > 0:
@@ -907,7 +947,35 @@ def ar_bank_vision():
             ar_data["affordability_status"] = "comfortable"
             ar_data["can_afford"] = True
 
+    ar_data["_message_id"] = message.id
+    ar_data["_source"] = "ar"
     return jsonify(ar_data)
+
+
+# ── AI Feedback ────────────────────────────────────────────────────────────────
+
+@app.route("/api/feedback", methods=["POST"])
+@login_required
+def ai_feedback():
+    data = request.get_json(force=True) or {}
+    message_id = str(data.get("message_id", "")).strip()
+    source     = str(data.get("source", "unknown")).strip()
+    rating     = int(data.get("rating", 0))   # 1 = thumbs up, -1 = thumbs down
+    context    = data.get("context")           # optional dict with item/category etc.
+
+    if not message_id:
+        return jsonify({"error": "message_id required"}), 400
+    if rating not in (1, -1):
+        return jsonify({"error": "rating must be 1 or -1"}), 400
+
+    row_id = db.save_feedback(
+        user_id=current_user.id,
+        message_id=message_id,
+        source=source,
+        rating=rating,
+        context_json=json.dumps(context) if context else None,
+    )
+    return jsonify({"ok": True, "id": row_id})
 
 
 # ── Admin: Database viewer (secret route for developers) ─────────────────────

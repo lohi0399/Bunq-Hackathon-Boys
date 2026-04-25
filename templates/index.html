@@ -488,11 +488,8 @@
   <button class="nav-item" data-page="receipt-ai" onclick="nav('receipt-ai',this)">
     <span class="nav-icon">🧾</span><span class="nav-label">Receipt AI</span>
   </button>
-  <button class="nav-item" data-page="xray" onclick="nav('xray',this)">
-    <span class="nav-icon">🔬</span><span class="nav-label">X-Ray Vision</span>
-  </button>
   <button class="nav-item" data-page="ar-vision" onclick="nav('ar-vision',this)">
-    <span class="nav-icon">🎯</span><span class="nav-label">AR Bank Vision</span>
+    <span class="nav-icon">🌀</span><span class="nav-label">Lenz AI</span>
   </button>
 
   <div class="nav-section">Banking</div>
@@ -546,8 +543,7 @@
       <div class="stat"><div class="stat-lbl">Quick Actions</div>
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="nav('receipt-ai',navBtn('receipt-ai'))">🧾 Scan</button>
-          <button class="btn btn-blue" onclick="nav('xray',navBtn('xray'))">🔬 X-Ray</button>
-          <button class="btn" style="background:rgba(255,120,50,.1);color:#ff7832;border-color:rgba(255,120,50,.3)" onclick="nav('ar-vision',navBtn('ar-vision'))">🎯 AR Cam</button>
+          <button class="btn" style="background:rgba(255,120,50,.1);color:#ff7832;border-color:rgba(255,120,50,.3)" onclick="nav('ar-vision',navBtn('ar-vision'))">🌀 Lenz AI</button>
         </div>
       </div>
       <div class="stat"><div class="stat-lbl">Banking</div>
@@ -619,87 +615,6 @@
         <div class="card">
           <div class="card-title">Recent Scans <span style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0" id="rec-count-badge"></span></div>
           <div id="recent-receipts"><div class="empty"><div class="empty-icon">🧾</div>No receipts yet</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── X-RAY VISION ─── -->
-  <div class="page" id="page-xray">
-    <div class="page-header">
-      <div class="page-title">X-Ray Spending Vision</div>
-      <div class="page-sub">Point camera at any item — see its real financial cost</div>
-    </div>
-
-    <div class="g2">
-      <!-- Upload col -->
-      <div class="card">
-        <div class="xray-hero">
-          <div class="xray-icon">🔬</div>
-          <div class="xray-title">Spending Reality Check</div>
-          <div class="xray-sub">AI identifies the item and shows brutal financial truth</div>
-        </div>
-        <div class="xray-drop" id="xray-drop" role="button" tabindex="0">
-          <div class="xray-upload-icon">📸</div>
-          <p style="font-size:12px;color:var(--text2)">Photo of an item you're thinking of buying</p>
-          <div class="file-pills" style="margin-top:8px">
-            <span class="fpill">Shoes</span><span class="fpill">Electronics</span>
-            <span class="fpill">Anything</span>
-          </div>
-        </div>
-        <input type="file" id="xray-file" accept="image/*" style="display:none"/>
-        <input type="file" id="xray-cam" accept="image/*" style="display:none"/>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="camera-btn" onclick="openCamModal('xray')">📷 Aim Camera</button>
-          <button class="camera-btn" style="background:rgba(79,140,255,.1);color:var(--blue);border-color:rgba(79,140,255,.3)" onclick="document.getElementById('xray-file').click()">📁 Upload Photo</button>
-        </div>
-        <div id="xray-prev-wrap" style="display:none;margin-top:12px">
-          <img id="xray-prev" alt="Item preview" style="width:100%;max-height:180px;object-fit:contain;border-radius:9px;border:1px solid var(--border-hi);background:var(--surface2)"/>
-          <div style="font-size:11px;color:var(--text3);margin-top:6px;cursor:pointer" onclick="document.getElementById('xray-file').click()">↩ Change</div>
-        </div>
-        <button class="btn btn-blue btn-full" id="xray-btn" style="margin-top:12px" disabled>
-          <span id="xray-lbl">🔬 Analyse Item</span>
-        </button>
-      </div>
-
-      <!-- Results col -->
-      <div>
-        <div id="xray-results-wrap" style="display:none">
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-title" id="xray-item-name">Item Identified</div>
-            <div id="xray-item-desc" style="font-size:13px;color:var(--text2);margin-bottom:14px"></div>
-            <div style="font-size:28px;font-weight:900;font-family:var(--mono);
-              background:linear-gradient(90deg,var(--purple),var(--pink));
-              -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px"
-              id="xray-price"></div>
-            <div style="font-size:11px;color:var(--text3)" id="xray-confidence"></div>
-          </div>
-
-          <div class="g2" style="margin-bottom:14px">
-            <div class="impact-card">
-              <div class="impact-label">⏰ Hours of Work</div>
-              <div class="impact-val hours" id="xi-hours">—</div>
-              <div class="impact-sub">@ avg €18/hr post-tax</div>
-            </div>
-            <div class="impact-card">
-              <div class="impact-label">📈 S&P 500 in 10 Years</div>
-              <div class="impact-val sp500" id="xi-sp500">—</div>
-              <div class="impact-sub">if invested today (10% p.a.)</div>
-            </div>
-          </div>
-          <div class="impact-card" style="margin-bottom:14px">
-            <div class="impact-label">💼 Monthly Salary</div>
-            <div class="impact-val pct" id="xi-pct">—</div>
-            <div class="impact-sub">of avg Dutch net salary (€2,200/mo)</div>
-          </div>
-
-          <div id="xray-impacts"></div>
-        </div>
-
-        <!-- X-Ray history -->
-        <div class="card">
-          <div class="card-title">Previous Scans</div>
-          <div id="xray-history-list"><div class="empty"><div class="empty-icon">🔬</div>No scans yet</div></div>
         </div>
       </div>
     </div>
@@ -853,10 +768,10 @@
     </div>
   </div>
 
-  <!-- ─── AR BANK VISION ─── -->
+  <!-- ─── LENZ AI ─── -->
   <div class="page" id="page-ar-vision">
     <div class="page-header">
-      <div class="page-title">🎯 AR Bank Vision</div>
+      <div class="page-title">🌀 Lenz AI</div>
       <div class="page-sub">Live camera — AI scans what you see every few seconds</div>
     </div>
 
@@ -947,13 +862,9 @@
   <div class="page" id="page-history">
     <div class="page-header">
       <div class="page-title">Scan History</div>
-      <div class="page-sub">All receipts and X-Ray scans from your database</div>
+      <div class="page-sub">All receipts from your database</div>
     </div>
-    <div class="htab-bar" style="justify-content:space-between;align-items:center">
-      <div style="display:flex;gap:4px">
-        <button class="htab active" id="htab-receipts" onclick="switchHistTab('receipts')">🧾 Receipts</button>
-        <button class="htab" id="htab-xray" onclick="switchHistTab('xray')">🔬 X-Ray Scans</button>
-      </div>
+    <div class="htab-bar" style="justify-content:flex-end;align-items:center">
       <button id="hist-clear-btn" onclick="clearHistory()"
         style="padding:5px 12px;font-size:11px;font-weight:700;background:rgba(244,63,94,.08);color:var(--danger);border:1px solid rgba(244,63,94,.25);border-radius:6px;cursor:pointer;font-family:var(--font);transition:all .13s"
         onmouseover="this.style.background='rgba(244,63,94,.18)'" onmouseout="this.style.background='rgba(244,63,94,.08)'">
@@ -967,11 +878,6 @@
       </div>
       <div class="card">
         <div id="hist-rec-body"><div class="empty"><div class="empty-icon">🧾</div>Loading…</div></div>
-      </div>
-    </div>
-    <div id="hist-xray" style="display:none">
-      <div class="card">
-        <div id="hist-xray-body"><div class="empty"><div class="empty-icon">🔬</div>Loading…</div></div>
       </div>
     </div>
   </div>
@@ -1021,8 +927,7 @@ function nav(id, btn) {
   if (btn) btn.classList.add('active');
   if (id === 'accounts') loadAccounts();
   if (id === 'transactions') loadTransactions();
-  if (id === 'history') { loadHistReceipts(); loadHistXray(); }
-  if (id === 'xray') loadXrayHistory();
+  if (id === 'history') { loadHistReceipts(); }
   if (id === 'ar-vision') loadArVision();
 }
 function navBtn(id) { return document.querySelector(`[data-page="${id}"]`); }
@@ -1307,6 +1212,27 @@ analyzeBtn.addEventListener('click', async()=>{
   finally{analyzeBtn.disabled=false;document.getElementById('analyze-lbl').textContent='✦ Analyse with Claude AI';}
 });
 
+// ─── Shared AI feedback widget ───────────────────────────────────────────────
+function feedbackHtml(messageId, source, contextObj) {
+  const ctx = encodeURIComponent(JSON.stringify(contextObj||{}));
+  return `<div class="feedback-bar" id="fb-${esc(messageId)}" style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px">
+    <span style="font-size:11px;color:var(--text3);flex:1">Was this AI advice helpful?</span>
+    <button onclick="submitFeedback('${esc(messageId)}','${esc(source)}',1,decodeURIComponent('${ctx}'))" style="padding:5px 10px;background:rgba(0,255,179,.1);color:var(--neon);border:1px solid rgba(0,255,179,.25);border-radius:6px;cursor:pointer;font-size:14px" title="Helpful">👍</button>
+    <button onclick="submitFeedback('${esc(messageId)}','${esc(source)}',-1,decodeURIComponent('${ctx}'))" style="padding:5px 10px;background:rgba(244,63,94,.08);color:var(--danger);border:1px solid rgba(244,63,94,.2);border-radius:6px;cursor:pointer;font-size:14px" title="Not helpful">👎</button>
+  </div>`;
+}
+async function submitFeedback(messageId, source, rating, contextRaw) {
+  const bar = document.getElementById('fb-' + messageId);
+  if (!bar) return;
+  let context = null;
+  try { context = JSON.parse(contextRaw); } catch(_){}
+  try {
+    await api('/api/feedback', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message_id:messageId, source, rating, context})});
+    bar.innerHTML = '<span style="font-size:12px;color:var(--neon)">✓ Thanks for your feedback!</span>';
+  } catch(e) { toast('Feedback failed', 'err'); }
+}
+
 function renderReceipt(d) {
   const cur=d.currency||'EUR', amt=fmt(d.amount||0);
   const items=(d.items||[]).map(i=>`<div class="item-row"><span>${esc(i.name)}</span><span class="item-price">${cur} ${fmt(i.price)}</span></div>`).join('');
@@ -1365,91 +1291,27 @@ async function loadRecentReceipts() {
 }
 
 // ═══ X-RAY VISION ════════════════════════════════════════════════════════════
-const xrayDrop = document.getElementById('xray-drop');
-const xrayFile = document.getElementById('xray-file');
-const xrayCam  = document.getElementById('xray-cam');
-const xrayPrevWrap = document.getElementById('xray-prev-wrap');
-const xrayPrev = document.getElementById('xray-prev');
-const xrayBtn  = document.getElementById('xray-btn');
+const xrayDrop = null;
+const xrayFile = null;
+const xrayCam  = null;
+const xrayPrevWrap = null;
+const xrayPrev = null;
+const xrayBtn  = null;
 let xraySelFile = null;
 
-function loadXrayFile(f) {
-  xraySelFile = f; xrayPrev.src = URL.createObjectURL(f);
-  xrayPrevWrap.style.display='block'; xrayDrop.style.display='none';
-  xrayBtn.disabled=false;
-  document.getElementById('xray-lbl').textContent='🔬 Analyse Item';
-}
-xrayDrop.addEventListener('click', ()=>xrayFile.click());
-xrayFile.addEventListener('change', ()=>{ if(xrayFile.files[0]) loadXrayFile(xrayFile.files[0]); });
-xrayCam.addEventListener('change',  ()=>{ if(xrayCam.files[0])  loadXrayFile(xrayCam.files[0]);  });
-xrayDrop.addEventListener('dragover', e=>{e.preventDefault();xrayDrop.classList.add('over')});
-xrayDrop.addEventListener('dragleave', ()=>xrayDrop.classList.remove('over'));
-xrayDrop.addEventListener('drop', e=>{e.preventDefault();xrayDrop.classList.remove('over');if(e.dataTransfer.files[0])loadXrayFile(e.dataTransfer.files[0])});
-
-xrayBtn.addEventListener('click', async()=>{
-  if(!xraySelFile) return;
-  xrayBtn.disabled=true;
-  document.getElementById('xray-lbl').innerHTML='<div class="spin"></div> Identifying…';
-  const form = new FormData(); form.append('image', xraySelFile);
-  try {
-    const r = await fetch('/api/xray',{method:'POST',body:form});
-    const d = await r.json();
-    if(!r.ok){toast(d.error,'err');return;}
-    renderXray(d); toast('Item identified!'); loadXrayHistory();
-  } catch(e){ toast('Network error','err'); }
-  finally { xrayBtn.disabled=false; document.getElementById('xray-lbl').textContent='🔬 Analyse Item'; }
-});
-
-function renderXray(d) {
-  document.getElementById('xray-results-wrap').style.display='block';
-  document.getElementById('xray-item-name').innerHTML=
-    `<span style="margin-right:4px">🔍</span>${esc(d.item_name||'Item')}`;
-  document.getElementById('xray-item-desc').textContent  = d.description||'';
-  document.getElementById('xray-price').textContent      = `€${fmt(d.estimated_price)}`;
-  const conf = d.price_confidence||'medium';
-  document.getElementById('xray-confidence').textContent = `Price confidence: ${conf}`;
-  document.getElementById('xi-hours').textContent  = `${d.hours_of_work}h`;
-  document.getElementById('xi-sp500').textContent  = `€${Number(d.sp500_10yr||0).toLocaleString('en-EU',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-  document.getElementById('xi-pct').textContent    = `${d.monthly_pct}%`;
-  document.getElementById('xray-impacts').innerHTML =
-    (d.impacts||[]).map(m=>`<div class="impact-msg">${esc(m)}</div>`).join('');
-}
-
-async function loadXrayHistory() {
-  try {
-    const scans = await api('/api/xray/history?limit=5');
-    const el = document.getElementById('xray-history-list');
-    if(!scans.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔬</div>No scans yet</div>';return;}
-    el.innerHTML = scans.map(s=>`
-      <div class="rec-card">
-        <div class="rec-emoji">🔬</div>
-        <div class="rec-info">
-          <div class="rec-merchant">${esc(s.item_name)}</div>
-          <div class="rec-desc">${s.hours_of_work}h work · S&P 500 → €${Number(s.sp500_10yr||0).toFixed(0)}</div>
-        </div>
-        <div class="rec-amt">€${fmt(s.estimated_price)}</div>
-      </div>`).join('');
-  } catch(e) { console.warn('xray hist:', e.message); }
-}
+function loadXrayFile(f) {}
+async function loadXrayHistory() {}
+function renderXray(d) {}
 
 // ═══ HISTORY PAGE ════════════════════════════════════════════════════════════
-function switchHistTab(tab) {
-  document.getElementById('htab-receipts').classList.toggle('active', tab==='receipts');
-  document.getElementById('htab-xray').classList.toggle('active', tab==='xray');
-  document.getElementById('hist-receipts').style.display = tab==='receipts'?'block':'none';
-  document.getElementById('hist-xray').style.display     = tab==='xray'?'block':'none';
-}
+function switchHistTab(tab) {}
 
 async function clearHistory() {
-  const activeTab = document.getElementById('htab-receipts').classList.contains('active') ? 'receipts' : 'xray';
-  const label = activeTab === 'receipts' ? 'receipts' : 'X-Ray scans';
-  if (!confirm(`Delete all ${label}? This cannot be undone.`)) return;
+  if (!confirm('Delete all receipts? This cannot be undone.')) return;
   try {
-    const endpoint = activeTab === 'receipts' ? '/api/receipts/clear' : '/api/xray/clear';
-    const d = await api(endpoint, { method: 'DELETE' });
-    toast(`Deleted ${d.deleted} ${label}`, 'ok');
-    if (activeTab === 'receipts') { loadHistReceipts(); loadRecentReceipts(); }
-    else loadHistXray();
+    const d = await api('/api/receipts/clear', { method: 'DELETE' });
+    toast(`Deleted ${d.deleted} receipts`, 'ok');
+    loadHistReceipts(); loadRecentReceipts();
   } catch(e) { toast(e.message, 'err'); }
 }
 const CAT_META = {
@@ -1548,26 +1410,9 @@ async function loadHistReceipts() {
       </tr>`).join('')}</tbody></table></div>`;
   } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
 }
-async function loadHistXray() {
-  const el = document.getElementById('hist-xray-body');
-  el.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading…</div>';
-  try {
-    const scans = await api('/api/xray/history?limit=100');
-    if(!scans.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔬</div>No X-Ray scans yet</div>';return;}
-    el.innerHTML=`<div class="tbl-wrap"><table>
-      <thead><tr><th>Date</th><th>Item</th><th>Price</th><th>Hours Work</th><th>S&P 500 10Y</th><th>Salary %</th></tr></thead>
-      <tbody>${scans.map(s=>`<tr>
-        <td class="td-mono" style="font-size:10px;color:var(--text3)">${esc(s.created_at?.slice(0,10)||'')}</td>
-        <td style="font-weight:600">🔬 ${esc(s.item_name)}</td>
-        <td class="td-mono" style="color:var(--purple)">€${fmt(s.estimated_price)}</td>
-        <td class="td-mono" style="color:var(--amber)">${s.hours_of_work}h</td>
-        <td class="td-mono" style="color:var(--neon)">€${Number(s.sp500_10yr||0).toFixed(0)}</td>
-        <td class="td-mono" style="color:var(--pink)">${s.monthly_pct}%</td>
-      </tr>`).join('')}</tbody></table></div>`;
-  } catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;}
-}
+async function loadHistXray() {}
 
-// ═══ AR BANK VISION — Motion-triggered Auto-Scan ════════════════════════════
+// ═══ AR LENZ AI — Motion-triggered Auto-Scan ════════════════════════════
 let arStream = null;
 let arMotionLoop = null;     // requestAnimationFrame loop ID
 let arScanning = false;      // guard against overlapping API calls
@@ -1793,7 +1638,34 @@ function renderArOverlay(d) {
   const amzUrl  = 'https://www.amazon.com/s?k=' + itemQ;
 
   const wrap = document.getElementById('ar-live-result-wrap');
+
+  // Build duplicate warning banner (rendered before main card)
+  const dupWarn = (function() {
+    const w = d.duplicate_warning;
+    if (!w) return '';
+    const totalSpent = (w.all_matches || []).reduce((s, m) => s + m.item_price, 0);
+    const times = (w.all_matches || []).length;
+    return (
+      '<div class="card ar-result-enter" style="border:2px solid #fbbf24;background:rgba(251,191,36,.07);padding:14px;margin-bottom:8px">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px">' +
+          '<span style="font-size:26px;flex-shrink:0">⚠️</span>' +
+          '<div>' +
+            '<div style="font-size:13px;font-weight:800;color:#fbbf24;margin-bottom:4px">Already bought this recently!</div>' +
+            '<div style="font-size:12px;color:var(--text2);line-height:1.6">' +
+              'You purchased <strong style="color:var(--text)">' + esc(w.item_name) + '</strong> ' +
+              'at <strong style="color:var(--text)">' + esc(w.merchant) + '</strong> ' +
+              w.days_ago + ' day' + (w.days_ago !== 1 ? 's' : '') + ' ago' +
+              (totalSpent > 0 ? ' · spent <strong style="color:#fbbf24">€' + totalSpent.toFixed(2) + '</strong>' + (times > 1 ? ' across ' + times + ' items' : '') : '') +
+              ' in the last ' + esc(w.window_label) + '.' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  })();
+
   wrap.innerHTML =
+    dupWarn +
     '<div class="card ar-result-enter" style="border:2px solid ' + s.color + ';padding:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">' +
         '<div style="flex:1;min-width:0">' +
@@ -1911,9 +1783,13 @@ function renderArOverlay(d) {
           return rc === ac || rc.includes(ac) || ac.includes(rc);
         });
         if (!matched) return '';
+        const monthLabel = d.category_month_label || 'Last Month';
         return (
           '<div class="card ar-result-enter" style="padding:12px;border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.04)">' +
-            '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--amber);margin-bottom:6px">📊 Your ' + esc(matched.category.replace(/_/g,' ')) + ' History</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+              '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--amber)">📊 ' + esc(matched.category.replace(/_/g,' ')) + ' — This Month</div>' +
+              '<span style="font-size:9px;background:rgba(251,191,36,.15);color:var(--amber);border:1px solid rgba(251,191,36,.3);border-radius:4px;padding:1px 6px;font-weight:700">' + esc(monthLabel) + '</span>' +
+            '</div>' +
             '<div style="display:flex;gap:16px">' +
               '<div style="text-align:center">' +
                 '<div style="font-size:18px;font-weight:900;color:var(--amber);font-family:var(--mono)">' + matched.count + '</div>' +
@@ -1933,6 +1809,9 @@ function renderArOverlay(d) {
         '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:4px">📈 Long-term view</div>' +
         '<div style="font-size:12px;color:var(--text2)">' + esc(d.long_term_impact) + '</div>' +
       '</div>'
+    : '') +
+    (d._message_id ?
+      feedbackHtml(d._message_id, 'ar', {item: d.item, category: d.category, price: d.price, worth_it: d.worth_it})
     : '');
 }
 
