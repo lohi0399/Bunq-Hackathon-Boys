@@ -961,6 +961,10 @@
       </button>
     </div>
     <div id="hist-receipts">
+      <div class="card" id="receipt-chart-card" style="display:none;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px">📊 Spending by Category</div>
+        <div id="receipt-chart-wrap"></div>
+      </div>
       <div class="card">
         <div id="hist-rec-body"><div class="empty"><div class="empty-icon">🧾</div>Loading…</div></div>
       </div>
@@ -1448,13 +1452,91 @@ async function clearHistory() {
     else loadHistXray();
   } catch(e) { toast(e.message, 'err'); }
 }
+const CAT_META = {
+  FOOD_AND_DRINK:  {emoji:'🍽️', color:'#f472b6'},
+  SHOPPING:        {emoji:'🛍️', color:'#4f8cff'},
+  TRANSPORT:       {emoji:'🚗', color:'#fbbf24'},
+  ENTERTAINMENT:   {emoji:'🎬', color:'#a855f7'},
+  HEALTHCARE:      {emoji:'🏥', color:'#00ffb3'},
+  UTILITIES:       {emoji:'⚡', color:'#f97316'},
+  TRAVEL:          {emoji:'✈️', color:'#22d3ee'},
+  OTHER:           {emoji:'📋', color:'#6b7280'},
+};
+
+function buildCategoryPie(recs) {
+  // tally counts and totals per category
+  const tally = {};
+  recs.forEach(r => {
+    const cat = r.category || 'OTHER';
+    if (!tally[cat]) tally[cat] = {count:0, total:0};
+    tally[cat].count++;
+    tally[cat].total += Number(r.amount) || 0;
+  });
+  const cats = Object.entries(tally)
+    .sort((a,b)=>b[1].total-a[1].total)
+    .map(([key,val])=>({key, ...val, ...(CAT_META[key]||CAT_META.OTHER)}));
+  const grandTotal = cats.reduce((s,c)=>s+c.total, 0);
+  const totalCount = cats.reduce((s,c)=>s+c.count, 0);
+
+  // Build SVG pie slices
+  const cx=90, cy=90, r=72, ir=36;
+  let angle = -Math.PI/2;
+  let paths = '';
+  cats.forEach(c => {
+    const sweep = (c.count/totalCount)*Math.PI*2;
+    if (sweep < 0.001) return;
+    const x1=cx+r*Math.cos(angle),       y1=cy+r*Math.sin(angle);
+    const x2=cx+r*Math.cos(angle+sweep), y2=cy+r*Math.sin(angle+sweep);
+    const xi1=cx+ir*Math.cos(angle),      yi1=cy+ir*Math.sin(angle);
+    const xi2=cx+ir*Math.cos(angle+sweep),yi2=cy+ir*Math.sin(angle+sweep);
+    const large = sweep>Math.PI?1:0;
+    paths += `<path d="M${xi1.toFixed(1)},${yi1.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${xi2.toFixed(1)},${yi2.toFixed(1)} A${ir},${ir} 0 ${large},0 ${xi1.toFixed(1)},${yi1.toFixed(1)} Z"
+      fill="${c.color}" opacity="0.92" stroke="#07090f" stroke-width="1.5"/>`;
+    if (sweep > 0.32) {
+      const mid=angle+sweep/2, lx=cx+(r*0.68)*Math.cos(mid), ly=cy+(r*0.68)*Math.sin(mid);
+      paths += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="11">${c.emoji}</text>`;
+    }
+    angle += sweep;
+  });
+  // center label
+  paths += `<text x="${cx}" y="${cy-7}" text-anchor="middle" font-size="13" font-weight="800" fill="#e0e6f0">${totalCount}</text>`;
+  paths += `<text x="${cx}" y="${cy+9}" text-anchor="middle" font-size="9" fill="#6b7280" letter-spacing=".04em">SCANS</text>`;
+
+  // Legend rows
+  const legendRows = cats.map(c=>{
+    const pct = grandTotal>0?((c.total/grandTotal)*100).toFixed(0):'0';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="width:10px;height:10px;border-radius:3px;background:${c.color};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;font-size:12px;color:var(--text2)">${c.emoji} ${c.key.replace(/_/g,' ')}</span>
+      <span style="font-size:11px;font-weight:700;color:var(--text1);font-family:var(--mono)">${c.count}×</span>
+      <span style="font-size:11px;color:var(--text3);font-family:var(--mono);min-width:48px;text-align:right">€${c.total.toFixed(2)}</span>
+      <span style="font-size:10px;color:${c.color};font-weight:700;min-width:32px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  return `<div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;justify-content:center">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" style="width:180px;height:180px;flex-shrink:0">${paths}</svg>
+    <div style="flex:1;min-width:200px">${legendRows}</div>
+  </div>`;
+}
+
 async function loadHistReceipts() {
   const el = document.getElementById('hist-rec-body');
+  const chartCard = document.getElementById('receipt-chart-card');
+  const chartWrap = document.getElementById('receipt-chart-wrap');
   el.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading…</div>';
   try {
     const recs = await api('/api/receipts?limit=100');
-    if(!recs.length){el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div>No receipts yet</div>';return;}
-    const EMOJI={'FOOD_AND_DRINK':'🍽️','SHOPPING':'🛍️','TRANSPORT':'🚗','ENTERTAINMENT':'🎬','HEALTHCARE':'🏥','UTILITIES':'⚡','TRAVEL':'✈️','OTHER':'📋'};
+    if(!recs.length){
+      el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div>No receipts yet</div>';
+      chartCard.style.display='none';
+      return;
+    }
+    // render pie chart
+    chartWrap.innerHTML = buildCategoryPie(recs);
+    chartCard.style.display = '';
+    // render table
+    const EMOJI = Object.fromEntries(Object.entries(CAT_META).map(([k,v])=>[k,v.emoji]));
     el.innerHTML=`<div class="tbl-wrap"><table>
       <thead><tr><th>Date</th><th>Merchant</th><th>Category</th><th>Amount</th><th>bunq ID</th></tr></thead>
       <tbody>${recs.map(r=>`<tr>
@@ -1797,6 +1879,55 @@ function renderArOverlay(d) {
         })()
       : '') +
     '</div>' +
+    // Worth It verdict
+    (d.worth_it !== undefined ?
+      (function(){
+        const worthy = d.worth_it === true;
+        const wc = worthy ? 'var(--neon)' : 'var(--danger)';
+        const wbg = worthy ? 'rgba(0,255,179,.07)' : 'rgba(244,63,94,.07)';
+        const wborder = worthy ? 'rgba(0,255,179,.3)' : 'rgba(244,63,94,.3)';
+        const wicon = worthy ? '✅' : '❌';
+        const wlabel = worthy ? 'Worth Buying' : 'Not Worth It';
+        return (
+          '<div class="card ar-result-enter" style="padding:14px;background:' + wbg + ';border:2px solid ' + wborder + ';margin-bottom:8px">' +
+            '<div style="display:flex;align-items:center;gap:10px">' +
+              '<span style="font-size:28px">' + wicon + '</span>' +
+              '<div style="flex:1">' +
+                '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:' + wc + ';margin-bottom:2px">💡 Verdict</div>' +
+                '<div style="font-size:16px;font-weight:900;color:' + wc + '">' + wlabel + '</div>' +
+                (d.worth_it_reason ? '<div style="font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5">' + esc(d.worth_it_reason) + '</div>' : '') +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      })()
+    : '') +
+    // Category spending context
+    (d.category_spending && d.category_spending.length ?
+      (function(){
+        const matched = d.category_spending.find(c => {
+          const rc = (c.category||'').toLowerCase();
+          const ac = (d.category||'').toLowerCase();
+          return rc === ac || rc.includes(ac) || ac.includes(rc);
+        });
+        if (!matched) return '';
+        return (
+          '<div class="card ar-result-enter" style="padding:12px;border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.04)">' +
+            '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--amber);margin-bottom:6px">📊 Your ' + esc(matched.category.replace(/_/g,' ')) + ' History</div>' +
+            '<div style="display:flex;gap:16px">' +
+              '<div style="text-align:center">' +
+                '<div style="font-size:18px;font-weight:900;color:var(--amber);font-family:var(--mono)">' + matched.count + '</div>' +
+                '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">receipts</div>' +
+              '</div>' +
+              '<div style="text-align:center">' +
+                '<div style="font-size:18px;font-weight:900;color:var(--amber);font-family:var(--mono)">€' + Number(matched.total_amount).toFixed(2) + '</div>' +
+                '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">total spent</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      })()
+    : '') +
     (d.long_term_impact ?
       '<div class="card ar-result-enter" style="padding:12px;border-color:rgba(79,140,255,.25)">' +
         '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:4px">📈 Long-term view</div>' +

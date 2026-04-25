@@ -173,6 +173,18 @@ def list_xray_scans(user_id: int, limit: int = 20) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def category_spending(user_id: int) -> list[dict]:
+    """Return per-category totals for a user: category, count, total_amount."""
+    with _conn() as con:
+        rows = con.execute(
+            """SELECT category, COUNT(*) as count, SUM(amount) as total_amount
+               FROM receipts WHERE user_id = ?
+               GROUP BY category ORDER BY total_amount DESC""",
+            (user_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def clear_receipts(user_id: int) -> int:
     """Delete all receipts for a user. Returns number of rows deleted."""
     with _conn() as con:

@@ -811,6 +811,23 @@ def ar_bank_vision():
         savings_balance = 500.0
         current_balance = 500.0
 
+    # Pull real category spending history for this user
+    cat_rows = db.category_spending(current_user.id)
+    cat_total_spend = sum(r["total_amount"] for r in cat_rows)
+    if cat_rows:
+        cat_lines = "\n".join(
+            f"  - {r['category']}: {r['count']} receipt(s), €{r['total_amount']:.2f} spent"
+            for r in cat_rows
+        )
+        cat_context = (
+            f"USER'S REAL SPENDING HISTORY ({len(cat_rows)} categories, €{cat_total_spend:.2f} total scanned):\n"
+            + cat_lines + "\n"
+            "Use this to judge whether they tend to overspend in this product's category.\n"
+            "If the item's category matches a high-spend category, flag it in the recommendation.\n"
+        )
+    else:
+        cat_context = "USER'S SPENDING HISTORY: No receipts scanned yet — no category data available.\n"
+
     # AI Prompt for AR Bank Vision
     prompt = (
         "You are an AR product scanner for consumer goods and retail items.\n"
@@ -822,15 +839,16 @@ def ar_bank_vision():
         "2. ONLY analyse consumer products, goods, items (electronics, food, clothing, appliances, books, toys, accessories, etc.).\n"
         "3. Identify the main product. Extract any price shown. If no price visible, estimate a typical retail price in EUR.\n\n"
         f"USER BALANCE: \u20ac{total_balance:.2f} total (current \u20ac{current_balance:.2f} / savings \u20ac{savings_balance:.2f})\n"
-        f"HOURLY WAGE: \u20ac{HOURLY_WAGE_EUR:.2f} | MONTHLY SALARY: \u20ac{MONTHLY_SALARY_EUR:.2f}\n\n"
+        f"HOURLY WAGE: \u20ac{HOURLY_WAGE_EUR:.2f} | MONTHLY SALARY: \u20ac{MONTHLY_SALARY_EUR:.2f}\n"
+        f"{cat_context}\n"
         "Respond ONLY with compact JSON (no spaces, no markdown):\n"
         '{"item":"<full product name>","brand":<"brand name" or null>,"category":"<Electronics|Food|Clothing|Appliance|Book|Toy|Accessory|Other>",'
         '"price":<EUR float or 0>,"price_range":<"e.g. \\u20ac10-15 typical retail" or null>,'
         '"price_source":"<visible price tag|estimated retail price|online listing estimate|manufacturer MSRP>","can_afford":<bool>,'
         '"affordability_status":"comfortable|tight|impossible|no_price_found",'
         '"impact_on_balance":"<1 sentence>","hours_of_work":<float>,'
-        '"recommendation":"<1 sentence about whether to buy>","alternative":<"cheaper/better alternative product name" or null>,'
-        '"long_term_impact":"<1 sentence about opportunity cost>"}'
+        '"recommendation":"<1 sentence that factors in category spending history if relevant>","alternative":<"cheaper/better alternative product name" or null>,'
+        '"long_term_impact":"<1 sentence about opportunity cost>","worth_it":<true|false>,"worth_it_reason":"<1 sentence verdict based on budget + spending habits>"}'
     )
 
     try:
@@ -874,6 +892,8 @@ def ar_bank_vision():
         "current": current_balance,
         "savings": savings_balance,
     }
+    # Attach category spending context so the UI can show it
+    ar_data["category_spending"] = cat_rows
 
     # Override AI affordability with hard math — never trust AI's opinion over real balance
     if price > 0:
