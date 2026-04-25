@@ -98,6 +98,12 @@ ngrok (public): https://<tunnel>.ngrok-free.dev
 
 ## Architecture
 
+### System Diagram
+
+![Lenz Architecture](images/image.png)
+
+### Component Overview
+
 ```
 Browser (PWA)
      │
